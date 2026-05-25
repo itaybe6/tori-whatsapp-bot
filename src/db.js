@@ -130,6 +130,44 @@ async function getMessages(phone) {
   return data ?? [];
 }
 
+/**
+ * מוחק שיחה (וההודעות שלה — בזכות ON DELETE CASCADE בסכמה).
+ */
+async function deleteConversation(phone) {
+  const db = requireClient();
+  const { error } = await db.from("conversations").delete().eq("phone", phone);
+  if (error) throw error;
+}
+
+async function getLeads() {
+  const db = requireClient();
+  const { data, error } = await db
+    .from("leads")
+    .select(
+      "id, name, business, phone, business_type, notes, source, created_at"
+    )
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data ?? [];
+}
+
+/**
+ * מחזיר רק לידים שנוצרו אחרי isoTimestamp (exclusive).
+ * שימושי ל-polling של לידים חדשים.
+ */
+async function getLeadsCreatedAfter(isoTimestamp) {
+  const db = requireClient();
+  const { data, error } = await db
+    .from("leads")
+    .select(
+      "id, name, business, phone, business_type, notes, source, created_at"
+    )
+    .gt("created_at", isoTimestamp)
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return data ?? [];
+}
+
 module.exports = {
   upsertConversation,
   getConversationStatus,
@@ -137,4 +175,7 @@ module.exports = {
   setConversationStatus,
   getConversations,
   getMessages,
+  deleteConversation,
+  getLeads,
+  getLeadsCreatedAfter,
 };

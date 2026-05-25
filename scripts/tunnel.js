@@ -24,7 +24,8 @@ const port = Number(process.env.PORT) || 3000;
     };
     process.on("SIGINT", shutdown);
     process.on("SIGTERM", shutdown);
-    process.stdin.resume();
+    // Keep the Node process alive while the ngrok listener is open.
+    setInterval(() => {}, 1 << 30);
   } catch (err) {
     console.error(err.message || err);
     if (!process.env.NGROK_AUTHTOKEN) {

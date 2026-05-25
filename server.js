@@ -13,6 +13,9 @@ const {
   setConversationStatus,
   getConversations,
   getMessages,
+  deleteConversation,
+  getLeads,
+  getLeadsCreatedAfter,
 } = require("./src/db");
 
 const app = express();
@@ -44,7 +47,10 @@ function isDuplicateAgentSend(phone, message) {
 // CORS — דשבורד על פורט 3001 קורא ל-API על פורט אחר
 app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader(
+    "Access-Control-Allow-Methods",
+    "GET, POST, DELETE, OPTIONS"
+  );
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
   if (req.method === "OPTIONS") return res.sendStatus(204);
   next();
@@ -103,6 +109,32 @@ app.get("/api/messages/:phone", async (req, res) => {
     res.json(rows);
   } catch (err) {
     console.error("❌ get messages:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete("/api/conversations/:phone", async (req, res) => {
+  const phone = req.params.phone;
+  if (!phone) {
+    return res.status(400).json({ error: "חסר phone" });
+  }
+  try {
+    await deleteConversation(phone);
+    conversations.delete(phone);
+    console.log(`🗑️  שיחה נמחקה: ${phone}`);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("❌ delete conversation:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get("/api/leads", async (req, res) => {
+  try {
+    const rows = await getLeads();
+    res.json(rows);
+  } catch (err) {
+    console.error("❌ get leads:", err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -226,8 +258,55 @@ app.post("/webhook", async (req, res) => {
 
 // ============================================================
 // OUTBOUND — שליחה יזומה ללקוח שהשאיר פרטים
-// POST /send-opening  body: { phone: "9725XXXXXXXX", name: "שם" }
 // ============================================================
+
+/**
+ * מנרמל מספר טלפון לפורמט WhatsApp: ספרות בלבד + קידומת מדינה.
+ * אם התחיל ב-0 (ישראלי) — מוסיף 972.
+ */
+function normalizePhone(raw) {
+  let phone = String(raw || "").replace(/\D/g, "");
+  if (!phone) return null;
+  if (phone.startsWith("0")) {
+    phone = "972" + phone.slice(1);
+  }
+  return phone;
+}
+
+const recentOpeningSends = new Map();
+const OPENING_DEDUPE_MS = 60_000;
+
+function shouldSendOpening(phone) {
+  const now = Date.now();
+  for (const [p, t] of recentOpeningSends.entries()) {
+    if (now - t > OPENING_DEDUPE_MS) recentOpeningSends.delete(p);
+  }
+  const last = recentOpeningSends.get(phone);
+  if (last && now - last < OPENING_DEDUPE_MS) return false;
+  recentOpeningSends.set(phone, now);
+  return true;
+}
+
+async function sendOpening(phone, name) {
+  const normalized = normalizePhone(phone);
+  if (!normalized) {
+    throw new Error("מספר טלפון לא תקין");
+  }
+  if (!shouldSendOpening(normalized)) {
+    console.log(`↻ דילגנו על הודעת פתיחה כפולה ל-${normalized}`);
+    return { skipped: true, phone: normalized };
+  }
+  const opening = getOpeningMessage(name || "");
+  await upsertConversation(normalized, name || "");
+  await sendMessage(normalized, opening);
+  await saveMessage(normalized, "bot", opening);
+  conversations.set(normalized, [
+    { role: "model", parts: [{ text: opening }] },
+  ]);
+  return { skipped: false, phone: normalized };
+}
+
+// POST /send-opening  body: { phone: "9725XXXXXXXX", name: "שם" }
 app.post("/send-opening", async (req, res) => {
   const { phone, name } = req.body;
 
@@ -236,20 +315,70 @@ app.post("/send-opening", async (req, res) => {
   }
 
   try {
-    const opening = getOpeningMessage(name || "");
-    await sendMessage(phone, opening);
-
-    conversations.set(phone, [
-      { role: "model", parts: [{ text: opening }] },
-    ]);
-
-    console.log(`🚀 פתחנו שיחה עם ${name} (${phone})`);
-    res.json({ success: true, message: "הודעת פתיחה נשלחה" });
+    const result = await sendOpening(phone, name);
+    console.log(
+      `🚀 פתחנו שיחה עם ${name || ""} (${result.phone})${result.skipped ? " — דילוג (כבר נשלח)" : ""}`
+    );
+    res.json({ success: true, message: "הודעת פתיחה נשלחה", ...result });
   } catch (err) {
     console.error("❌ שגיאה בשליחת פתיחה:", err);
     res.status(500).json({ error: err.message });
   }
 });
+
+// ============================================================
+// LEADS WATCHER — פולינג לטבלת leads בסופאבייס.
+// כל ליד חדש (אחרי שהשרת עלה) מקבל הודעת פתיחה אוטומטית בוואטסאפ.
+// ============================================================
+const LEADS_POLL_MS = 5000;
+let lastSeenLeadCreatedAt = null;
+
+async function initLeadsWatcher() {
+  try {
+    const existing = await getLeads();
+    lastSeenLeadCreatedAt =
+      existing[0]?.created_at ?? new Date(Date.now() - 1000).toISOString();
+    console.log(
+      `👀 מאזין ללידים חדשים מרגע: ${lastSeenLeadCreatedAt} (קיימים: ${existing.length})`
+    );
+  } catch (err) {
+    console.warn(
+      `⚠️ נכשל איתחול מאזין הלידים (ננסה שוב בסיבוב הבא): ${err.message}`
+    );
+  }
+}
+
+async function pollNewLeads() {
+  if (lastSeenLeadCreatedAt == null) {
+    await initLeadsWatcher();
+    return;
+  }
+  try {
+    const fresh = await getLeadsCreatedAfter(lastSeenLeadCreatedAt);
+    if (!fresh.length) return;
+
+    for (const lead of fresh) {
+      try {
+        await sendOpening(lead.phone, lead.name || "");
+        console.log(
+          `📨 הודעת פתיחה נשלחה ל-${lead.name || "ליד חדש"} (${lead.phone})`
+        );
+      } catch (err) {
+        console.error(
+          `❌ שגיאה בשליחת פתיחה לליד ${lead.id} (${lead.phone}):`,
+          err.message
+        );
+      }
+    }
+
+    lastSeenLeadCreatedAt = fresh[fresh.length - 1].created_at;
+  } catch (err) {
+    console.error("❌ pollNewLeads:", err.message);
+  }
+}
+
+setInterval(pollNewLeads, LEADS_POLL_MS);
+initLeadsWatcher();
 
 // ============================================================
 // STATUS CHECK
@@ -258,7 +387,8 @@ app.get("/", (req, res) => {
   res.json({
     status: "🟢 Tori Bot פועל",
     activeConversations: conversations.size,
-    dashboardApi: "GET /api/conversations, GET /api/messages/:phone",
+    dashboardApi:
+      "GET /api/conversations, GET /api/messages/:phone, GET /api/leads",
   });
 });
 

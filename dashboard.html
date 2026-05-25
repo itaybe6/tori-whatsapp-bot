@@ -29,15 +29,128 @@
       color: var(--text);
       height: 100vh;
       overflow: hidden;
+      display: flex;
+      flex-direction: column;
     }
+    .topbar {
+      direction: rtl;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.65rem 1rem;
+      background: rgba(255, 255, 255, 0.88);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(18px);
+      box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
+    }
+    .topbar .brand {
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-left: 0.5rem;
+      color: var(--accent-strong);
+    }
+    .tab-btn {
+      font: inherit;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 0.45rem 1.1rem;
+      background: #ffffff;
+      color: var(--text);
+      font-size: 0.85rem;
+      font-weight: 600;
+      box-shadow: none;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .tab-btn.active {
+      background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+      color: #ffffff;
+      border-color: transparent;
+      box-shadow: 0 8px 20px rgba(37, 99, 235, 0.22);
+    }
+    .view {
+      flex: 1;
+      min-height: 0;
+      display: none;
+    }
+    .view.active { display: flex; }
     .layout {
       display: grid;
       grid-template-columns: minmax(320px, 380px) 1fr;
-      height: 100vh;
+      flex: 1;
       min-height: 0;
       direction: rtl;
       gap: 1px;
       background: var(--border);
+      width: 100%;
+    }
+    .leads-view {
+      direction: rtl;
+      width: 100%;
+      overflow: hidden;
+      flex-direction: column;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(238, 244, 251, 0.96) 55%),
+        var(--bg);
+    }
+    .leads-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 1rem 1.35rem;
+      border-bottom: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.78);
+      backdrop-filter: blur(18px);
+    }
+    .leads-toolbar h2 {
+      font-size: 1.05rem;
+      letter-spacing: -0.02em;
+    }
+    .leads-count {
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+    .leads-table-wrap {
+      flex: 1;
+      min-height: 0;
+      overflow: auto;
+      padding: 1rem 1.35rem 1.5rem;
+    }
+    table.leads-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      background: var(--panel-strong);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      font-size: 0.88rem;
+    }
+    table.leads-table th,
+    table.leads-table td {
+      padding: 0.7rem 0.9rem;
+      text-align: right;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    table.leads-table thead th {
+      background: rgba(37, 99, 235, 0.06);
+      font-weight: 700;
+      font-size: 0.8rem;
+      color: var(--accent-strong);
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+    table.leads-table tbody tr:hover { background: rgba(59, 130, 246, 0.05); }
+    table.leads-table tbody tr:last-child td { border-bottom: none; }
+    table.leads-table td.phone { direction: ltr; text-align: right; color: var(--muted); }
+    .leads-empty {
+      padding: 2rem;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.95rem;
     }
     .sidebar {
       background: var(--panel);
@@ -114,6 +227,35 @@
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+    }
+    .conv-item .row1 .actions {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .conv-delete {
+      background: transparent;
+      border: 1px solid rgba(220, 38, 38, 0.25);
+      color: #dc2626;
+      padding: 0.25rem 0.55rem;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: none;
+      transition: background 0.15s, color 0.15s;
+    }
+    .conv-delete:hover {
+      background: #dc2626;
+      color: #ffffff;
+    }
+    button.danger {
+      background: linear-gradient(135deg, #ef4444, #dc2626);
+      color: #ffffff;
+      box-shadow: 0 8px 18px rgba(220, 38, 38, 0.22);
+    }
+    button.danger:hover:not(:disabled) {
+      box-shadow: 0 12px 24px rgba(220, 38, 38, 0.30);
     }
     .badge {
       font-size: 0.7rem;
@@ -308,43 +450,65 @@
   </style>
 </head>
 <body>
-  <div class="layout">
-    <aside class="sidebar">
-      <div class="sidebar-header">
-        <h1>שיחות WhatsApp</h1>
-        <p class="sub">שיחות כל 5 שנ׳ · הודעות בצ׳אט כל 2 שנ׳</p>
-      </div>
-      <div class="conv-list" id="convList"></div>
-    </aside>
-    <main class="main">
-      <div class="main-header" id="mainHeader" style="display:none">
-        <div class="title">
-          <h2 id="detailName">—</h2>
-          <div class="meta" id="detailPhone"></div>
-        </div>
-        <div class="toolbar" id="toolbar"></div>
-      </div>
-      <div class="empty-state" id="emptyState">בחר שיחה מהרשימה</div>
-      <div class="messages-wrap" id="messagesWrap" style="display:none"></div>
-      <div class="composer" id="composer">
-        <div class="composer-inner">
-          <textarea id="agentInput" rows="2" placeholder="הקלד הודעה כנציג…"></textarea>
-          <button type="button" id="sendAgentBtn">שליחה</button>
-        </div>
-      </div>
-    </main>
+  <div class="topbar">
+    <span class="brand">Tori</span>
+    <button type="button" class="tab-btn active" data-tab="conversations" id="tabConversations">שיחות</button>
+    <button type="button" class="tab-btn" data-tab="leads" id="tabLeads">לידים</button>
   </div>
+
+  <section class="view active" id="viewConversations">
+    <div class="layout">
+      <aside class="sidebar">
+        <div class="sidebar-header">
+          <h1>שיחות WhatsApp</h1>
+          <p class="sub">שיחות כל 5 שנ׳ · הודעות בצ׳אט כל 2 שנ׳</p>
+        </div>
+        <div class="conv-list" id="convList"></div>
+      </aside>
+      <main class="main">
+        <div class="main-header" id="mainHeader" style="display:none">
+          <div class="title">
+            <h2 id="detailName">—</h2>
+            <div class="meta" id="detailPhone"></div>
+          </div>
+          <div class="toolbar" id="toolbar"></div>
+        </div>
+        <div class="empty-state" id="emptyState">בחר שיחה מהרשימה</div>
+        <div class="messages-wrap" id="messagesWrap" style="display:none"></div>
+        <div class="composer" id="composer">
+          <div class="composer-inner">
+            <textarea id="agentInput" rows="2" placeholder="הקלד הודעה כנציג…"></textarea>
+            <button type="button" id="sendAgentBtn">שליחה</button>
+          </div>
+        </div>
+      </main>
+    </div>
+  </section>
+
+  <section class="view leads-view" id="viewLeads">
+    <div class="leads-toolbar">
+      <h2>לידים</h2>
+      <span class="leads-count" id="leadsCount">—</span>
+    </div>
+    <div class="leads-table-wrap" id="leadsTableWrap">
+      <div class="leads-empty" id="leadsLoading">טוען לידים…</div>
+    </div>
+  </section>
+
   <div class="err-toast" id="errToast"></div>
 
   <script>
     const API_BASE = "http://localhost:3000";
     const CONV_POLL_MS = 5000;
     const MSG_POLL_MS = 2000;
+    const LEADS_POLL_MS = 5000;
 
     let selectedPhone = null;
     let conversationsCache = [];
     let agentSendInFlight = false;
     let lastToolbarStatus = null;
+    let activeTab = "conversations";
+    let leadsCache = [];
 
     function statusBadge(status) {
       const s = status || "bot";
@@ -403,11 +567,15 @@
           const active = c.phone === selectedPhone ? "active" : "";
           const nm = (c.name && c.name.trim()) || "ללא שם";
           const prev = (c.last_message || "").slice(0, 80);
+          const phoneAttr = encodeURIComponent(c.phone);
           return `
-            <div class="conv-item ${active}" data-phone="${encodeURIComponent(c.phone)}">
+            <div class="conv-item ${active}" data-phone="${phoneAttr}">
               <div class="row1">
                 <span class="name">${escapeHtml(nm)}</span>
-                ${statusBadge(c.status)}
+                <div class="actions">
+                  ${statusBadge(c.status)}
+                  <button type="button" class="conv-delete" data-delete="${phoneAttr}" title="מחק שיחה">מחק</button>
+                </div>
               </div>
               <div class="phone">${escapeHtml(c.phone)}</div>
               <div class="preview">${escapeHtml(prev)}</div>
@@ -416,11 +584,40 @@
         .join("");
 
       list.querySelectorAll(".conv-item").forEach((el) => {
-        el.addEventListener("click", () => {
+        el.addEventListener("click", (e) => {
+          if (e.target.closest("[data-delete]")) return;
           const ph = decodeURIComponent(el.getAttribute("data-phone"));
           selectConversation(ph);
         });
       });
+
+      list.querySelectorAll("[data-delete]").forEach((btn) => {
+        btn.addEventListener("click", async (e) => {
+          e.stopPropagation();
+          const ph = decodeURIComponent(btn.getAttribute("data-delete"));
+          await deleteConversationFlow(ph);
+        });
+      });
+    }
+
+    async function deleteConversationFlow(phone) {
+      const c = conversationsCache.find((x) => x.phone === phone);
+      const name = (c && c.name && c.name.trim()) || phone;
+      const ok = window.confirm(
+        `למחוק את השיחה עם ${name}?\nהפעולה תמחק גם את כל ההודעות ולא ניתנת לשחזור.`
+      );
+      if (!ok) return;
+      try {
+        await api("DELETE", "/api/conversations/" + encodeURIComponent(phone));
+        if (selectedPhone === phone) {
+          selectedPhone = null;
+          lastToolbarStatus = null;
+        }
+        await loadConversations();
+        await refreshDetail();
+      } catch (e) {
+        showError(e.message || String(e));
+      }
     }
 
     function escapeHtml(s) {
@@ -481,6 +678,7 @@
       if (st === "human") {
         html += `<button type="button" class="secondary" id="btnHandback">החזר לבוט</button>`;
       }
+      html += `<button type="button" class="danger" id="btnDelete">מחק שיחה</button>`;
       tb.innerHTML = html;
 
       if (st === "human") {
@@ -511,6 +709,13 @@
           } catch (e) {
             showError(e.message);
           }
+        });
+      }
+      const d = document.getElementById("btnDelete");
+      if (d) {
+        d.addEventListener("click", async () => {
+          if (!selectedPhone) return;
+          await deleteConversationFlow(selectedPhone);
         });
       }
     }
@@ -612,6 +817,81 @@
 
     document.getElementById("sendAgentBtn").addEventListener("click", sendAgentMessage);
 
+    // ===== TABS =====
+    function switchTab(tab) {
+      activeTab = tab;
+      document.querySelectorAll(".tab-btn").forEach((b) => {
+        b.classList.toggle("active", b.dataset.tab === tab);
+      });
+      document
+        .getElementById("viewConversations")
+        .classList.toggle("active", tab === "conversations");
+      document
+        .getElementById("viewLeads")
+        .classList.toggle("active", tab === "leads");
+      if (tab === "leads") loadLeads();
+    }
+
+    document
+      .getElementById("tabConversations")
+      .addEventListener("click", () => switchTab("conversations"));
+    document
+      .getElementById("tabLeads")
+      .addEventListener("click", () => switchTab("leads"));
+
+    // ===== LEADS =====
+    async function loadLeads() {
+      try {
+        const rows = await api("GET", "/api/leads");
+        leadsCache = Array.isArray(rows) ? rows : [];
+        renderLeads();
+      } catch (e) {
+        showError(e.message || String(e));
+      }
+    }
+
+    function renderLeads() {
+      const wrap = document.getElementById("leadsTableWrap");
+      const countEl = document.getElementById("leadsCount");
+      countEl.textContent = `${leadsCache.length} לידים`;
+
+      if (!leadsCache.length) {
+        wrap.innerHTML = `<div class="leads-empty">אין לידים עדיין. כל ליד חדש שיכנס לטבלה ב-Supabase יקפוץ כאן ויקבל הודעת וואטסאפ אוטומטית.</div>`;
+        return;
+      }
+
+      const rows = leadsCache
+        .map((l) => {
+          return `
+            <tr>
+              <td>${escapeHtml(l.name || "")}</td>
+              <td>${escapeHtml(l.business || "")}</td>
+              <td>${escapeHtml(l.business_type || "")}</td>
+              <td class="phone">${escapeHtml(l.phone || "")}</td>
+              <td>${escapeHtml(l.source || "")}</td>
+              <td>${escapeHtml(l.notes || "")}</td>
+              <td>${formatTime(l.created_at)}</td>
+            </tr>`;
+        })
+        .join("");
+
+      wrap.innerHTML = `
+        <table class="leads-table">
+          <thead>
+            <tr>
+              <th>שם</th>
+              <th>שם העסק</th>
+              <th>תחום</th>
+              <th>טלפון</th>
+              <th>מקור</th>
+              <th>הערות</th>
+              <th>נכנס בתאריך</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>`;
+    }
+
     loadConversations();
     setInterval(loadConversations, CONV_POLL_MS);
 
@@ -625,6 +905,10 @@
         showError(e.message || String(e));
       }
     }, MSG_POLL_MS);
+
+    setInterval(() => {
+      if (activeTab === "leads") loadLeads();
+    }, LEADS_POLL_MS);
 
     document.getElementById("agentInput").addEventListener("keydown", (e) => {
       if (e.key === "Enter" && !e.shiftKey) {
