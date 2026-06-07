@@ -110,47 +110,208 @@
       font-size: 0.8rem;
       color: var(--muted);
     }
+    .leads-toolbar-actions {
+      margin-inline-start: auto;
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      flex-wrap: wrap;
+    }
+    .leads-import-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      cursor: pointer;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+    .leads-import-label input[type="checkbox"] {
+      accent-color: var(--accent);
+    }
+    #leadsImportInput { display: none; }
+    .import-status {
+      font-size: 0.8rem;
+      color: var(--muted);
+      max-width: 280px;
+    }
     .leads-table-wrap {
       flex: 1;
       min-height: 0;
       overflow: auto;
-      padding: 1rem 1.35rem 1.5rem;
+      padding: 1.25rem 1.5rem 1.75rem;
+    }
+    .leads-table-card {
+      background: var(--panel-strong);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
     }
     table.leads-table {
       width: 100%;
-      border-collapse: separate;
-      border-spacing: 0;
-      background: var(--panel-strong);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      overflow: hidden;
-      box-shadow: var(--shadow);
-      font-size: 0.88rem;
+      border-collapse: collapse;
+      font-size: 0.86rem;
     }
     table.leads-table th,
     table.leads-table td {
-      padding: 0.7rem 0.9rem;
+      padding: 0.85rem 1rem;
       text-align: right;
-      border-bottom: 1px solid var(--border);
       vertical-align: middle;
     }
     table.leads-table thead th {
-      background: rgba(37, 99, 235, 0.06);
+      background: linear-gradient(135deg, rgba(37, 99, 235, 0.10), rgba(14, 165, 233, 0.08));
       font-weight: 700;
-      font-size: 0.8rem;
+      font-size: 0.74rem;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
       color: var(--accent-strong);
       position: sticky;
       top: 0;
-      z-index: 1;
+      z-index: 2;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
     }
-    table.leads-table tbody tr:hover { background: rgba(59, 130, 246, 0.05); }
-    table.leads-table tbody tr:last-child td { border-bottom: none; }
-    table.leads-table td.phone { direction: ltr; text-align: right; color: var(--muted); }
+    table.leads-table tbody tr {
+      border-bottom: 1px solid rgba(37, 99, 235, 0.08);
+      transition: background 0.18s ease, box-shadow 0.18s ease;
+    }
+    table.leads-table tbody tr:hover {
+      background: linear-gradient(90deg, rgba(59, 130, 246, 0.06), rgba(255, 255, 255, 0.4));
+    }
+    table.leads-table tbody tr:last-child { border-bottom: none; }
+    .lead-name-cell {
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+      min-width: 0;
+    }
+    .lead-avatar {
+      flex-shrink: 0;
+      width: 2.15rem;
+      height: 2.15rem;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #fff;
+      background: linear-gradient(135deg, #3b82f6, #6366f1);
+      box-shadow: 0 6px 16px rgba(59, 130, 246, 0.28);
+    }
+    .lead-name-text {
+      font-weight: 600;
+      color: var(--text);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 160px;
+    }
+    .lead-business {
+      font-weight: 500;
+      color: var(--text);
+      max-width: 180px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .lead-tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.28rem 0.65rem;
+      border-radius: 999px;
+      font-size: 0.74rem;
+      font-weight: 600;
+      background: #f1f5f9;
+      color: #475569;
+      border: 1px solid rgba(100, 116, 139, 0.15);
+      white-space: nowrap;
+    }
+    .lead-source {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.25rem 0.6rem;
+      border-radius: 8px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      background: rgba(37, 99, 235, 0.08);
+      color: var(--accent-strong);
+      white-space: nowrap;
+    }
+    table.leads-table td.phone {
+      direction: ltr;
+      text-align: right;
+      font-family: "Cascadia Code", "Consolas", monospace;
+      font-size: 0.82rem;
+      color: #334155;
+      font-weight: 500;
+      letter-spacing: 0.02em;
+    }
+    .lead-date {
+      font-size: 0.78rem;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .lead-status-wrap {
+      position: relative;
+      display: inline-flex;
+    }
+    .lead-status-select {
+      appearance: none;
+      -webkit-appearance: none;
+      border: 1px solid transparent;
+      border-radius: 999px;
+      padding: 0.42rem 2rem 0.42rem 0.85rem;
+      font: inherit;
+      font-size: 0.76rem;
+      font-weight: 700;
+      cursor: pointer;
+      outline: none;
+      transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+      background-repeat: no-repeat;
+      background-position: left 0.55rem center;
+      background-size: 0.65rem;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%2364748b'%3E%3Cpath fill-rule='evenodd' d='M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.25a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z'/%3E%3C/svg%3E");
+    }
+    .lead-status-select:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 14px rgba(15, 23, 42, 0.10);
+    }
+    .lead-status-select:focus {
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.18);
+    }
+    .lead-status-select:disabled {
+      opacity: 0.65;
+      cursor: wait;
+    }
+    .lead-status-select.status-no_contact {
+      background-color: #f8fafc;
+      color: #64748b;
+      border-color: #e2e8f0;
+    }
+    .lead-status-select.status-message_sent {
+      background-color: #dbeafe;
+      color: #1d4ed8;
+      border-color: #bfdbfe;
+    }
+    .lead-status-select.status-relevant {
+      background-color: #dcfce7;
+      color: #15803d;
+      border-color: #bbf7d0;
+    }
+    .lead-status-select.status-not_relevant {
+      background-color: #fee2e2;
+      color: #b91c1c;
+      border-color: #fecaca;
+    }
     .leads-empty {
-      padding: 2rem;
+      padding: 3rem 2rem;
       text-align: center;
       color: var(--muted);
       font-size: 0.95rem;
+      background: var(--panel-strong);
+      border: 1px dashed var(--border);
+      border-radius: 20px;
     }
     .sidebar {
       background: var(--panel);
@@ -489,6 +650,15 @@
     <div class="leads-toolbar">
       <h2>לידים</h2>
       <span class="leads-count" id="leadsCount">—</span>
+      <div class="leads-toolbar-actions">
+        <label class="leads-import-label" title="שלח הודעת פתיחה בוואטסאפ לכל ליד חדש">
+          <input type="checkbox" id="leadsSendOpening" />
+          שלח הודעת פתיחה
+        </label>
+        <input type="file" id="leadsImportInput" accept=".xlsx,.xls" />
+        <button type="button" id="leadsImportBtn">ייבוא Excel</button>
+        <span class="import-status" id="importStatus"></span>
+      </div>
     </div>
     <div class="leads-table-wrap" id="leadsTableWrap">
       <div class="leads-empty" id="leadsLoading">טוען לידים…</div>
@@ -509,6 +679,33 @@
     let lastToolbarStatus = null;
     let activeTab = "conversations";
     let leadsCache = [];
+    let leadStatusUpdateInFlight = new Set();
+
+    const LEAD_STATUS_OPTIONS = [
+      { value: "no_contact", label: "לא נוצר קשר" },
+      { value: "message_sent", label: "נשלח הודעה" },
+      { value: "relevant", label: "רלוונטי" },
+      { value: "not_relevant", label: "לא רלוונטי" },
+    ];
+
+    function leadStatusLabel(value) {
+      const opt = LEAD_STATUS_OPTIONS.find((o) => o.value === value);
+      return opt ? opt.label : LEAD_STATUS_OPTIONS[0].label;
+    }
+
+    function leadInitial(name) {
+      const t = String(name || "").trim();
+      return t ? t.charAt(0).toUpperCase() : "?";
+    }
+
+    function leadStatusSelectHtml(lead) {
+      const status = lead.status || "no_contact";
+      const opts = LEAD_STATUS_OPTIONS.map(
+        (o) =>
+          `<option value="${o.value}"${o.value === status ? " selected" : ""}>${escapeHtml(o.label)}</option>`
+      ).join("");
+      return `<select class="lead-status-select status-${status}" data-lead-id="${lead.id}" aria-label="סטטוס ליד">${opts}</select>`;
+    }
 
     function statusBadge(status) {
       const s = status || "bot";
@@ -840,6 +1037,55 @@
       .addEventListener("click", () => switchTab("leads"));
 
     // ===== LEADS =====
+    let importInFlight = false;
+
+    document.getElementById("leadsImportBtn").addEventListener("click", () => {
+      document.getElementById("leadsImportInput").click();
+    });
+
+    document.getElementById("leadsImportInput").addEventListener("change", async (e) => {
+      const file = e.target.files?.[0];
+      e.target.value = "";
+      if (!file || importInFlight) return;
+
+      const statusEl = document.getElementById("importStatus");
+      const btn = document.getElementById("leadsImportBtn");
+      const sendOpening = document.getElementById("leadsSendOpening").checked;
+
+      importInFlight = true;
+      btn.disabled = true;
+      btn.textContent = "מייבא…";
+      statusEl.textContent = `מעלה ${file.name}…`;
+
+      try {
+        const form = new FormData();
+        form.append("file", file);
+        form.append("sendOpening", sendOpening ? "true" : "false");
+
+        const res = await fetch(API_BASE + "/api/leads/import", {
+          method: "POST",
+          body: form,
+          cache: "no-store",
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || res.statusText || "שגיאת ייבוא");
+        }
+
+        statusEl.textContent = `נוספו ${data.inserted}, דולגו ${data.skipped}${
+          data.openingsSent ? `, נשלחו ${data.openingsSent} פתיחות` : ""
+        }`;
+        await loadLeads();
+      } catch (err) {
+        showError(err.message || String(err));
+        statusEl.textContent = "";
+      } finally {
+        importInFlight = false;
+        btn.disabled = false;
+        btn.textContent = "ייבוא Excel";
+      }
+    });
+
     async function loadLeads() {
       try {
         const rows = await api("GET", "/api/leads");
@@ -850,46 +1096,99 @@
       }
     }
 
+    function applyLeadStatusSelectStyle(sel) {
+      sel.className = "lead-status-select status-" + (sel.value || "no_contact");
+    }
+
+    function bindLeadStatusSelects() {
+      document.querySelectorAll(".lead-status-select").forEach((sel) => {
+        applyLeadStatusSelectStyle(sel);
+        sel.addEventListener("change", async () => {
+          const id = sel.getAttribute("data-lead-id");
+          const newStatus = sel.value;
+          const prevStatus =
+            leadsCache.find((l) => l.id === id)?.status || "no_contact";
+          if (!id || newStatus === prevStatus || leadStatusUpdateInFlight.has(id)) {
+            applyLeadStatusSelectStyle(sel);
+            return;
+          }
+
+          leadStatusUpdateInFlight.add(id);
+          sel.disabled = true;
+          applyLeadStatusSelectStyle(sel);
+
+          const lead = leadsCache.find((l) => l.id === id);
+          if (lead) lead.status = newStatus;
+
+          try {
+            await api("PATCH", "/api/leads/" + encodeURIComponent(id), {
+              status: newStatus,
+            });
+          } catch (e) {
+            if (lead) lead.status = prevStatus;
+            sel.value = prevStatus;
+            applyLeadStatusSelectStyle(sel);
+            showError(e.message || String(e));
+          } finally {
+            leadStatusUpdateInFlight.delete(id);
+            sel.disabled = false;
+          }
+        });
+      });
+    }
+
     function renderLeads() {
       const wrap = document.getElementById("leadsTableWrap");
       const countEl = document.getElementById("leadsCount");
       countEl.textContent = `${leadsCache.length} לידים`;
 
       if (!leadsCache.length) {
-        wrap.innerHTML = `<div class="leads-empty">אין לידים עדיין. כל ליד חדש שיכנס לטבלה ב-Supabase יקפוץ כאן ויקבל הודעת וואטסאפ אוטומטית.</div>`;
+        wrap.innerHTML = `<div class="leads-empty">אין לידים עדיין. ייבא קובץ Excel או המתן ללידים חדשים מ-Supabase.</div>`;
         return;
       }
 
       const rows = leadsCache
         .map((l) => {
+          const name = l.name || "";
+          const business = l.business || "";
+          const source = l.source || "—";
           return `
             <tr>
-              <td>${escapeHtml(l.name || "")}</td>
-              <td>${escapeHtml(l.business || "")}</td>
-              <td>${escapeHtml(l.business_type || "")}</td>
+              <td>
+                <div class="lead-name-cell">
+                  <span class="lead-avatar" aria-hidden="true">${escapeHtml(leadInitial(name))}</span>
+                  <span class="lead-name-text" title="${escapeHtml(name)}">${escapeHtml(name)}</span>
+                </div>
+              </td>
+              <td><span class="lead-business" title="${escapeHtml(business)}">${escapeHtml(business)}</span></td>
+              <td><span class="lead-tag">${escapeHtml(l.business_type || "—")}</span></td>
               <td class="phone">${escapeHtml(l.phone || "")}</td>
-              <td>${escapeHtml(l.source || "")}</td>
-              <td>${escapeHtml(l.notes || "")}</td>
-              <td>${formatTime(l.created_at)}</td>
+              <td><span class="lead-source">${escapeHtml(source)}</span></td>
+              <td><div class="lead-status-wrap">${leadStatusSelectHtml(l)}</div></td>
+              <td><span class="lead-date">${formatTime(l.created_at)}</span></td>
             </tr>`;
         })
         .join("");
 
       wrap.innerHTML = `
-        <table class="leads-table">
-          <thead>
-            <tr>
-              <th>שם</th>
-              <th>שם העסק</th>
-              <th>תחום</th>
-              <th>טלפון</th>
-              <th>מקור</th>
-              <th>הערות</th>
-              <th>נכנס בתאריך</th>
-            </tr>
-          </thead>
-          <tbody>${rows}</tbody>
-        </table>`;
+        <div class="leads-table-card">
+          <table class="leads-table">
+            <thead>
+              <tr>
+                <th>שם</th>
+                <th>שם העסק</th>
+                <th>תחום</th>
+                <th>טלפון</th>
+                <th>מקור</th>
+                <th>סטטוס</th>
+                <th>נכנס בתאריך</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>`;
+
+      bindLeadStatusSelects();
     }
 
     loadConversations();

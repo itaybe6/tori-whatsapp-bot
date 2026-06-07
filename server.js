@@ -1,6 +1,8 @@
 require("dotenv").config();
 const express = require("express");
+const multer = require("multer");
 const { sendMessage } = require("./src/whatsapp");
+const { parseExcelBuffer } = require("./src/excelImport");
 const {
   getReply,
   getOpeningMessage,
@@ -16,10 +18,27 @@ const {
   deleteConversation,
   getLeads,
   getLeadsCreatedAfter,
+  getExistingLeadPhones,
+  bulkInsertLeads,
+  updateLeadStatus,
+  checkConnection,
 } = require("./src/db");
 
 const app = express();
 app.use(express.json());
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter(_req, file, cb) {
+    const ok =
+      file.mimetype ===
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+      file.mimetype === "application/vnd.ms-excel" ||
+      /\.xlsx?$/i.test(file.originalname || "");
+    cb(ok ? null : new Error("רק קבצי Excel (.xlsx) נתמכים"), ok);
+  },
+});
 
 const recentAgentSends = new Map();
 const AGENT_SEND_DEDUPE_MS = 10000;
@@ -129,12 +148,103 @@ app.delete("/api/conversations/:phone", async (req, res) => {
   }
 });
 
+app.get("/api/health", async (_req, res) => {
+  try {
+    await checkConnection();
+    res.json({ ok: true, supabase: true });
+  } catch (err) {
+    res.status(503).json({ ok: false, supabase: false, error: err.message });
+  }
+});
+
 app.get("/api/leads", async (req, res) => {
   try {
     const rows = await getLeads();
     res.json(rows);
   } catch (err) {
     console.error("❌ get leads:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.patch("/api/leads/:id", async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body || {};
+  if (!id || !status) {
+    return res.status(400).json({ error: "חסר id או status" });
+  }
+  try {
+    const row = await updateLeadStatus(id, status);
+    res.json(row);
+  } catch (err) {
+    console.error("❌ update lead status:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/leads/import", upload.single("file"), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: "חסר קובץ Excel (שדה file)" });
+  }
+
+  const sendOpeningFlag =
+    req.body?.sendOpening === "true" || req.body?.sendOpening === true;
+  const businessType = req.body?.businessType || "סלון ציפורניים";
+
+  try {
+    const { leads, errors } = parseExcelBuffer(req.file.buffer, {
+      businessType,
+    });
+    const existing = await getExistingLeadPhones();
+    const toInsert = [];
+    let skipped = 0;
+
+    for (const lead of leads) {
+      if (existing.has(lead.phone)) {
+        skipped++;
+        continue;
+      }
+      existing.add(lead.phone);
+      toInsert.push(lead);
+    }
+
+    const inserted = await bulkInsertLeads(toInsert);
+    let openingsSent = 0;
+
+    if (inserted.length) {
+      const newest = inserted[inserted.length - 1].created_at;
+      if (sendOpeningFlag) {
+        for (const lead of inserted) {
+          try {
+            const result = await sendOpening(lead.phone, lead.name || "");
+            if (!result.skipped) openingsSent++;
+          } catch (err) {
+            console.error(
+              `❌ פתיחה לליד ${lead.phone}:`,
+              err.message
+            );
+          }
+        }
+        lastSeenLeadCreatedAt = newest;
+      } else {
+        lastSeenLeadCreatedAt = newest;
+      }
+    }
+
+    console.log(
+      `📥 ייבוא Excel: ${inserted.length} נוספו, ${skipped} דולגו, ${errors.length} שגיאות פרסור`
+    );
+
+    res.json({
+      success: true,
+      parsed: leads.length,
+      inserted: inserted.length,
+      skipped,
+      openingsSent,
+      parseErrors: errors,
+    });
+  } catch (err) {
+    console.error("❌ import leads:", err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -388,7 +498,7 @@ app.get("/", (req, res) => {
     status: "🟢 Tori Bot פועל",
     activeConversations: conversations.size,
     dashboardApi:
-      "GET /api/conversations, GET /api/messages/:phone, GET /api/leads",
+      "GET /api/conversations, GET /api/messages/:phone, GET /api/leads, PATCH /api/leads/:id, POST /api/leads/import",
   });
 });
 
@@ -398,4 +508,10 @@ app.listen(PORT, () => {
   console.log(`📡 Webhook URL: http://localhost:${PORT}/webhook`);
   console.log(`📤 שליחה יזומה: POST http://localhost:${PORT}/send-opening`);
   console.log(`📊 API דשבורד: http://localhost:${PORT}/api/conversations\n`);
+
+  checkConnection()
+    .then(() => console.log("✅ Supabase מחובר"))
+    .catch((err) =>
+      console.warn(`⚠️ Supabase לא זמין: ${err.message}`)
+    );
 });

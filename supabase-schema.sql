@@ -28,8 +28,16 @@ create table if not exists public.leads (
   business_type text not null,
   notes text,
   source text default 'landing-page',
+  status text not null default 'no_contact'
+    check (status in ('no_contact', 'message_sent', 'relevant', 'not_relevant')),
   created_at timestamptz not null default now()
 );
+
+-- מיגרציה לפרויקט קיים (הרץ פעם אחת ב-SQL Editor):
+-- alter table public.leads add column if not exists status text not null default 'no_contact';
+-- alter table public.leads drop constraint if exists leads_status_check;
+-- alter table public.leads add constraint leads_status_check
+--   check (status in ('no_contact', 'message_sent', 'relevant', 'not_relevant'));
 
 -- הפעלת RLS
 alter table public.leads enable row level security;
