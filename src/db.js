@@ -97,14 +97,61 @@ async function saveMessage(phone, role, content) {
   });
   if (insErr) throw insErr;
 
-  const { error: updErr } = await db
+  const convUpdate = {
+    last_message_at: new Date().toISOString(),
+    last_message: text.slice(0, 2000),
+  };
+  if (role === "user") {
+    convUpdate.last_user_message = text.slice(0, 2000);
+  }
+
+  let { error: updErr } = await db
     .from("conversations")
-    .update({
-      last_message_at: new Date().toISOString(),
-      last_message: text.slice(0, 2000),
-    })
+    .update(convUpdate)
     .eq("phone", phone);
+
+  if (updErr && role === "user" && isMissingUserMessageColumn(updErr)) {
+    ({ error: updErr } = await db
+      .from("conversations")
+      .update({
+        last_message_at: convUpdate.last_message_at,
+        last_message: convUpdate.last_message,
+      })
+      .eq("phone", phone));
+  }
   if (updErr) throw updErr;
+}
+
+function isMissingUserMessageColumn(err) {
+  const msg = String(err?.message || err || "");
+  return msg.includes("last_user_message") && msg.includes("does not exist");
+}
+
+function isMissingProactiveColumn(err) {
+  const msg = String(err?.message || err || "");
+  return msg.includes("proactive") && msg.includes("does not exist");
+}
+
+async function markConversationProactive(phone) {
+  const db = requireClient();
+  const { error } = await db
+    .from("conversations")
+    .update({ proactive: true })
+    .eq("phone", phone);
+  if (error && !isMissingProactiveColumn(error)) throw error;
+}
+
+async function markLeadActiveByPhone(phone) {
+  try {
+    const db = requireClient();
+    const { error } = await db
+      .from("leads")
+      .update({ status: "active_conversation" })
+      .eq("phone", phone);
+    if (error) throw error;
+  } catch (err) {
+    console.warn(`⚠️ לא עודכן סטטוס ליד ל-${phone}: ${err.message}`);
+  }
 }
 
 async function setConversationStatus(phone, status) {
@@ -134,14 +181,30 @@ async function setConversationStatus(phone, status) {
   }
 }
 
+const CONVERSATIONS_SELECT_FULL =
+  "phone, name, status, last_message_at, last_message, last_user_message, proactive";
+const CONVERSATIONS_SELECT_BASIC =
+  "phone, name, status, last_message_at, last_message";
+
 async function getConversations() {
   const db = requireClient();
-  const { data, error } = await db
+  let { data, error } = await db
     .from("conversations")
-    .select("phone, name, status, last_message_at, last_message")
+    .select(CONVERSATIONS_SELECT_FULL)
     .order("last_message_at", { ascending: false });
+
+  if (error && (isMissingUserMessageColumn(error) || isMissingProactiveColumn(error))) {
+    ({ data, error } = await db
+      .from("conversations")
+      .select(CONVERSATIONS_SELECT_BASIC)
+      .order("last_message_at", { ascending: false }));
+  }
   if (error) throw error;
-  return data ?? [];
+  return (data ?? []).map((row) => ({
+    ...row,
+    last_user_message: row.last_user_message || "",
+    proactive: Boolean(row.proactive),
+  }));
 }
 
 async function getMessages(phone) {
@@ -283,6 +346,7 @@ const LEADS_INSERT_CHUNK = 50;
 const LEAD_STATUSES = new Set([
   "no_contact",
   "message_sent",
+  "active_conversation",
   "relevant",
   "not_relevant",
 ]);
@@ -384,6 +448,8 @@ module.exports = {
   upsertConversation,
   getConversationStatus,
   saveMessage,
+  markConversationProactive,
+  markLeadActiveByPhone,
   setConversationStatus,
   getConversations,
   getMessages,

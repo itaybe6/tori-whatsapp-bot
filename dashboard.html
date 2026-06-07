@@ -177,10 +177,12 @@
     }
     table.leads-table tbody tr.row-no_contact { background: #f8fafc; }
     table.leads-table tbody tr.row-message_sent { background: #eff6ff; }
+    table.leads-table tbody tr.row-active_conversation { background: #f5f3ff; }
     table.leads-table tbody tr.row-relevant { background: #ecfdf5; }
     table.leads-table tbody tr.row-not_relevant { background: #fef2f2; }
     table.leads-table tbody tr.row-no_contact:hover { background: #f1f5f9; }
     table.leads-table tbody tr.row-message_sent:hover { background: #dbeafe; }
+    table.leads-table tbody tr.row-active_conversation:hover { background: #ede9fe; }
     table.leads-table tbody tr.row-relevant:hover { background: #d1fae5; }
     table.leads-table tbody tr.row-not_relevant:hover { background: #fee2e2; }
     table.leads-table tbody tr:last-child { border-bottom: none; }
@@ -421,6 +423,11 @@
       color: #1d4ed8;
       border-color: #bfdbfe;
     }
+    .lead-status-select.status-active_conversation {
+      background-color: #ede9fe;
+      color: #6d28d9;
+      border-color: #ddd6fe;
+    }
     .lead-status-select.status-relevant {
       background-color: #dcfce7;
       color: #15803d;
@@ -556,6 +563,11 @@
     .badge.bot { background: #dbeafe; color: #1d4ed8; }
     .badge.human { background: #f3e8ff; color: #7e22ce; }
     .badge.closed { background: #dcfce7; color: #15803d; }
+    .badge.proactive { background: #fef3c7; color: #b45309; }
+    .conv-item .preview.user-reply {
+      color: var(--text);
+      font-weight: 500;
+    }
 
     .main {
       display: flex;
@@ -908,6 +920,7 @@
     const LEAD_STATUS_OPTIONS = [
       { value: "no_contact", label: "לא נוצר קשר" },
       { value: "message_sent", label: "נשלח הודעה" },
+      { value: "active_conversation", label: "שיחה פעילה" },
       { value: "relevant", label: "רלוונטי" },
       { value: "not_relevant", label: "לא רלוונטי" },
     ];
@@ -987,19 +1000,22 @@
         .map((c) => {
           const active = c.phone === selectedPhone ? "active" : "";
           const nm = (c.name && c.name.trim()) || "ללא שם";
-          const prev = (c.last_message || "").slice(0, 80);
+          const userReply = (c.last_user_message || "").trim();
+          const prev = (userReply || c.last_message || "").slice(0, 80);
+          const previewCls = userReply ? "preview user-reply" : "preview";
           const phoneAttr = encodeURIComponent(c.phone);
           return `
             <div class="conv-item ${active}" data-phone="${phoneAttr}">
               <div class="row1">
                 <span class="name">${escapeHtml(nm)}</span>
                 <div class="actions">
+                  ${c.proactive ? '<span class="badge proactive">שיחה יזומה</span>' : ""}
                   ${statusBadge(c.status)}
                   <button type="button" class="conv-delete" data-delete="${phoneAttr}" title="מחק שיחה">מחק</button>
                 </div>
               </div>
               <div class="phone">${escapeHtml(c.phone)}</div>
-              <div class="preview">${escapeHtml(prev)}</div>
+              <div class="${previewCls}">${escapeHtml(prev)}</div>
             </div>`;
         })
         .join("");

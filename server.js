@@ -14,6 +14,8 @@ const {
   upsertConversation,
   getConversationStatus,
   saveMessage,
+  markConversationProactive,
+  markLeadActiveByPhone,
   setConversationStatus,
   getConversations,
   getMessages,
@@ -275,6 +277,7 @@ app.post("/api/leads/:id/send-first-message", async (req, res) => {
 
     const text = getFirstLeadMessage(messageName);
     await upsertConversation(phone, messageName);
+    await markConversationProactive(phone);
     await sendProactiveMessage(phone, messageName, getFirstLeadTemplateOptions());
     await saveMessage(phone, "bot", text);
     await updateLead(id, { status: "message_sent" });
@@ -446,6 +449,7 @@ app.post("/webhook", async (req, res) => {
     const convStatus = await getConversationStatus(from);
     if (convStatus === "human") {
       await saveMessage(from, "user", text);
+      await markLeadActiveByPhone(from);
       console.log(`   מצב נציג אנושי — הבוט לא עונה`);
       return;
     }
@@ -463,6 +467,7 @@ app.post("/webhook", async (req, res) => {
     }
 
     await saveMessage(from, "user", text);
+    await markLeadActiveByPhone(from);
 
     let reply;
 
@@ -519,10 +524,14 @@ function getFirstLeadTemplateOptions() {
         process.env.WHATSAPP_OPENING_TEMPLATE_LANG ||
         "he",
       useNameVar:
-        process.env.WHATSAPP_FIRST_LEAD_TEMPLATE_HAS_NAME === "true",
+        process.env.WHATSAPP_FIRST_LEAD_TEMPLATE_HAS_NAME !== "false",
     };
   }
-  return {};
+  return {
+    templateName: process.env.WHATSAPP_OPENING_TEMPLATE || "tori_first_contact",
+    languageCode: process.env.WHATSAPP_OPENING_TEMPLATE_LANG || "he",
+    useNameVar: process.env.WHATSAPP_OPENING_TEMPLATE_HAS_NAME === "true",
+  };
 }
 
 function shouldSendOpening(phone) {
@@ -547,6 +556,7 @@ async function sendOpening(phone, name) {
   }
   const opening = getOpeningMessage(name || "");
   await upsertConversation(normalized, name || "");
+  await markConversationProactive(normalized);
   await sendProactiveMessage(normalized, name || "");
   await saveMessage(normalized, "bot", opening);
   conversations.set(normalized, [

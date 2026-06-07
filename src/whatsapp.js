@@ -33,7 +33,9 @@ async function postWhatsApp(payload) {
         "💡 חלון 24 שעות סגור — לשליחה יזומה חייב template מאושר (WHATSAPP_OPENING_TEMPLATE ב-.env)."
       );
     }
-    throw err;
+    const detail =
+      fb?.error_user_msg || fb?.message || err.message || "שגיאת שליחה";
+    throw new Error(detail);
   }
 }
 
@@ -73,12 +75,12 @@ async function sendTemplateMessage(to, options = {}) {
   };
 
   if (useNameVar && options.name) {
-    const firstName = String(options.name).trim().split(/\s+/)[0];
-    if (firstName) {
+    const displayName = String(options.name).trim();
+    if (displayName) {
       template.components = [
         {
           type: "body",
-          parameters: [{ type: "text", text: firstName }],
+          parameters: [{ type: "text", text: displayName }],
         },
       ];
     }

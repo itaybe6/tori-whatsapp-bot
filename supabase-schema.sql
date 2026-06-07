@@ -5,7 +5,9 @@ create table if not exists public.conversations (
   name text not null default '',
   status text not null default 'bot' check (status in ('bot', 'human', 'closed')),
   last_message_at timestamptz not null default now(),
-  last_message text not null default ''
+  last_message text not null default '',
+  last_user_message text not null default '',
+  proactive boolean not null default false
 );
 
 create table if not exists public.messages (
@@ -29,7 +31,7 @@ create table if not exists public.leads (
   notes text,
   source text default 'landing-page',
   status text not null default 'no_contact'
-    check (status in ('no_contact', 'message_sent', 'relevant', 'not_relevant')),
+    check (status in ('no_contact', 'message_sent', 'active_conversation', 'relevant', 'not_relevant')),
   message_name text not null default '',
   created_at timestamptz not null default now()
 );
@@ -40,6 +42,11 @@ create table if not exists public.leads (
 -- alter table public.leads add constraint leads_status_check
 --   check (status in ('no_contact', 'message_sent', 'relevant', 'not_relevant'));
 -- alter table public.leads add column if not exists message_name text not null default '';
+-- alter table public.conversations add column if not exists last_user_message text not null default '';
+-- alter table public.conversations add column if not exists proactive boolean not null default false;
+-- alter table public.leads drop constraint if exists leads_status_check;
+-- alter table public.leads add constraint leads_status_check
+--   check (status in ('no_contact', 'message_sent', 'active_conversation', 'relevant', 'not_relevant'));
 
 -- הפעלת RLS
 alter table public.leads enable row level security;
