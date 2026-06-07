@@ -243,6 +243,11 @@
       color: var(--accent-strong);
       white-space: nowrap;
     }
+    .lead-send-disabled {
+      color: #94a3b8;
+      font-size: 0.85rem;
+      user-select: none;
+    }
     table.leads-table td.phone {
       direction: ltr;
       text-align: right;
@@ -297,7 +302,7 @@
     .lead-message-name-input:focus {
       box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.14);
     }
-    .lead-edit-btn[data-action="edit"] {
+    .lead-icon-btn {
       flex-shrink: 0;
       display: inline-flex;
       align-items: center;
@@ -309,20 +314,24 @@
       border: none;
       border-radius: 8px;
       padding: 0;
-      font-size: 1rem;
-      line-height: 1;
-      color: var(--accent-strong);
+      color: #64748b;
       background: transparent;
       box-shadow: none;
-      transition: background 0.15s, opacity 0.15s;
+      transition: background 0.15s, color 0.15s, opacity 0.15s;
     }
-    .lead-edit-btn[data-action="edit"]:hover:not(:disabled) {
-      background: rgba(59, 130, 246, 0.1);
+    .lead-icon-btn svg {
+      width: 1.05rem;
+      height: 1.05rem;
+      display: block;
+    }
+    .lead-icon-btn:hover:not(:disabled) {
+      background: rgba(15, 23, 42, 0.06);
+      color: #334155;
       transform: none;
       box-shadow: none;
     }
-    .lead-edit-btn:disabled {
-      opacity: 0.5;
+    .lead-icon-btn:disabled {
+      opacity: 0.45;
       cursor: wait;
     }
     .lead-edit-btn.save,
@@ -351,39 +360,18 @@
       border-color: #fecaca;
       background: #fef2f2;
     }
+    .lead-send-cell {
+      width: 44px;
+      text-align: center;
+      padding-inline: 0.45rem !important;
+    }
     .lead-delete-cell {
       width: 44px;
       text-align: center;
       padding-inline: 0.45rem !important;
     }
-    .lead-delete-btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 1.85rem;
-      height: 1.85rem;
-      border: none;
-      border-radius: 8px;
-      background: transparent;
-      color: #dc2626;
-      cursor: pointer;
-      font-size: 1rem;
-      line-height: 1;
-      box-shadow: none;
-      padding: 0;
-      transition: background 0.15s, opacity 0.15s;
-    }
-    .lead-delete-btn:hover:not(:disabled) {
-      background: rgba(220, 38, 38, 0.1);
-      transform: none;
-      box-shadow: none;
-    }
-    .lead-delete-btn:disabled {
-      opacity: 0.45;
-      cursor: wait;
-    }
     .lead-message-name-cell.editing .lead-message-name,
-    .lead-message-name-cell.editing .lead-edit-btn[data-action="edit"] {
+    .lead-message-name-cell.editing .lead-icon-btn[data-action="edit"] {
       display: none;
     }
     .lead-message-name-cell:not(.editing) .lead-message-name-input,
@@ -747,6 +735,62 @@
       z-index: 100;
     }
     .err-toast.show { display: block; }
+
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.45);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      padding: 1rem;
+    }
+    .modal-overlay.show { display: flex; }
+    .modal-card {
+      width: min(100%, 420px);
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      box-shadow: var(--shadow);
+      padding: 1.35rem 1.35rem 1.1rem;
+    }
+    .modal-card h3 {
+      font-size: 1.05rem;
+      margin-bottom: 1rem;
+      color: var(--accent-strong);
+    }
+    .modal-field {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      margin-bottom: 0.85rem;
+    }
+    .modal-field label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--muted);
+    }
+    .modal-field input {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 0.65rem 0.8rem;
+      font: inherit;
+      font-size: 0.9rem;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .modal-field input:focus {
+      border-color: rgba(37, 99, 235, 0.45);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+    }
+    .modal-actions {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: flex-start;
+      margin-top: 1rem;
+    }
   </style>
 </head>
 <body>
@@ -790,6 +834,7 @@
       <h2>לידים</h2>
       <span class="leads-count" id="leadsCount">—</span>
       <div class="leads-toolbar-actions">
+        <button type="button" class="secondary" id="leadsAddBtn">+ הוספת ליד</button>
         <label class="leads-import-label" title="שלח הודעת פתיחה בוואטסאפ לכל ליד חדש">
           <input type="checkbox" id="leadsSendOpening" />
           שלח הודעת פתיחה
@@ -803,6 +848,30 @@
       <div class="leads-empty" id="leadsLoading">טוען לידים…</div>
     </div>
   </section>
+
+  <div class="modal-overlay" id="addLeadModal" aria-hidden="true">
+    <div class="modal-card" role="dialog" aria-labelledby="addLeadTitle">
+      <h3 id="addLeadTitle">הוספת ליד חדש</h3>
+      <form id="addLeadForm">
+        <div class="modal-field">
+          <label for="addLeadBusiness">שם העסק *</label>
+          <input id="addLeadBusiness" name="business" type="text" required placeholder="לדוגמה: מעיין לוי ציפורניים" />
+        </div>
+        <div class="modal-field">
+          <label for="addLeadPhone">טלפון *</label>
+          <input id="addLeadPhone" name="phone" type="tel" required placeholder="050-1234567" dir="ltr" />
+        </div>
+        <div class="modal-field">
+          <label for="addLeadType">תחום</label>
+          <input id="addLeadType" name="business_type" type="text" value="סלון ציפורניים" />
+        </div>
+        <div class="modal-actions">
+          <button type="submit" id="addLeadSubmitBtn">הוסף ליד</button>
+          <button type="button" class="secondary" id="addLeadCancelBtn">ביטול</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <div class="err-toast" id="errToast"></div>
 
@@ -821,6 +890,20 @@
     let leadStatusUpdateInFlight = new Set();
     let leadNameUpdateInFlight = new Set();
     let leadDeleteInFlight = new Set();
+    let leadSendInFlight = new Set();
+
+    const LEAD_ICON_EDIT =
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 1 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>';
+    const LEAD_ICON_TRASH =
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>';
+    const LEAD_ICON_SEND =
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>';
+
+    const FIRST_MESSAGE_ALLOWED_SOURCES = new Set(["manual", "excel-import"]);
+
+    function canSendFirstMessage(lead) {
+      return FIRST_MESSAGE_ALLOWED_SOURCES.has(lead?.source || "");
+    }
 
     const LEAD_STATUS_OPTIONS = [
       { value: "no_contact", label: "לא נוצר קשר" },
@@ -1179,6 +1262,58 @@
 
     // ===== LEADS =====
     let importInFlight = false;
+    let addLeadInFlight = false;
+
+    function openAddLeadModal() {
+      const modal = document.getElementById("addLeadModal");
+      document.getElementById("addLeadForm").reset();
+      document.getElementById("addLeadType").value = "סלון ציפורניים";
+      modal.classList.add("show");
+      modal.setAttribute("aria-hidden", "false");
+      document.getElementById("addLeadBusiness").focus();
+    }
+
+    function closeAddLeadModal() {
+      const modal = document.getElementById("addLeadModal");
+      modal.classList.remove("show");
+      modal.setAttribute("aria-hidden", "true");
+    }
+
+    document.getElementById("leadsAddBtn").addEventListener("click", openAddLeadModal);
+    document.getElementById("addLeadCancelBtn").addEventListener("click", closeAddLeadModal);
+    document.getElementById("addLeadModal").addEventListener("click", (e) => {
+      if (e.target.id === "addLeadModal") closeAddLeadModal();
+    });
+
+    document.getElementById("addLeadForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      if (addLeadInFlight) return;
+
+      const business = document.getElementById("addLeadBusiness").value.trim();
+      const phone = document.getElementById("addLeadPhone").value.trim();
+      const business_type = document.getElementById("addLeadType").value.trim() || "סלון ציפורניים";
+      if (!business || !phone) {
+        showError("יש למלא שם עסק וטלפון");
+        return;
+      }
+
+      const btn = document.getElementById("addLeadSubmitBtn");
+      addLeadInFlight = true;
+      btn.disabled = true;
+      btn.textContent = "מוסיף…";
+
+      try {
+        await api("POST", "/api/leads", { business, phone, business_type, name: business });
+        closeAddLeadModal();
+        await loadLeads();
+      } catch (err) {
+        showError(err.message || String(err));
+      } finally {
+        addLeadInFlight = false;
+        btn.disabled = false;
+        btn.textContent = "הוסף ליד";
+      }
+    });
 
     document.getElementById("leadsImportBtn").addEventListener("click", () => {
       document.getElementById("leadsImportInput").click();
@@ -1315,6 +1450,51 @@
       });
     }
 
+    async function sendFirstMessageFlow(id) {
+      const lead = leadsCache.find((l) => l.id === id);
+      if (!canSendFirstMessage(lead)) {
+        showError("שליחת הודעה ראשונה זמינה רק ללידים ממקור ידני או ייבוא Excel");
+        return;
+      }
+      const messageName = (lead?.message_name || "").trim();
+      if (!messageName) {
+        showError("חסר שם לשליחת הודעה — ערכי את השם לפני השליחה");
+        return;
+      }
+
+      const preview =
+        `היי ${messageName} מה שלומך ?\n` +
+        "הבנתי שאת בונת ציפורניים , זה נכון ?";
+      const ok = window.confirm(
+        `לשלוח הודעה ראשונה ל-${messageName}?\n\n${preview}`
+      );
+      if (!ok || leadSendInFlight.has(id)) return;
+
+      leadSendInFlight.add(id);
+      try {
+        await api("POST", "/api/leads/" + encodeURIComponent(id) + "/send-first-message");
+        if (lead) lead.status = "message_sent";
+        renderLeads();
+      } catch (e) {
+        showError(e.message || String(e));
+      } finally {
+        leadSendInFlight.delete(id);
+      }
+    }
+
+    function bindLeadSendButtons() {
+      document.querySelectorAll(".lead-send-btn").forEach((btn) => {
+        btn.addEventListener("click", async (e) => {
+          e.stopPropagation();
+          const id = btn.getAttribute("data-lead-id");
+          if (!id) return;
+          btn.disabled = true;
+          await sendFirstMessageFlow(id);
+          btn.disabled = false;
+        });
+      });
+    }
+
     async function deleteLeadFlow(id) {
       const lead = leadsCache.find((l) => l.id === id);
       const label =
@@ -1405,8 +1585,20 @@
           const source = l.source || "—";
           const status = l.status || "no_contact";
           const messageName = (l.message_name || "").trim();
+          const sendBtn = canSendFirstMessage(l)
+            ? `<button
+                  type="button"
+                  class="lead-send-btn lead-icon-btn"
+                  data-lead-id="${l.id}"
+                  title="שליחת הודעה ראשונה"
+                  aria-label="שליחת הודעה ראשונה"
+                >${LEAD_ICON_SEND}</button>`
+            : `<span class="lead-send-disabled" title="שליחה זמינה רק ללידים ידניים או מ-Excel">—</span>`;
           return `
             <tr class="row-${status}">
+              <td class="lead-send-cell">
+                ${sendBtn}
+              </td>
               <td>
                 <div class="lead-name-cell">
                   <span class="lead-avatar" aria-hidden="true">${escapeHtml(leadInitial(name))}</span>
@@ -1418,7 +1610,7 @@
                 <div class="lead-message-name-cell" data-lead-id="${l.id}">
                   <span class="lead-message-name${messageName ? "" : " empty"}">${escapeHtml(messageName || "—")}</span>
                   <input class="lead-message-name-input" type="text" aria-label="עריכת שם לשליחת הודעה" />
-                  <button type="button" class="lead-edit-btn" data-action="edit" title="עריכת שם" aria-label="עריכת שם">✏️</button>
+                  <button type="button" class="lead-edit-btn lead-icon-btn" data-action="edit" title="עריכת שם" aria-label="עריכת שם">${LEAD_ICON_EDIT}</button>
                   <button type="button" class="lead-edit-btn save" data-action="save" title="שמירה">שמור</button>
                   <button type="button" class="lead-edit-btn cancel" data-action="cancel" title="ביטול">ביטול</button>
                 </div>
@@ -1431,11 +1623,11 @@
               <td class="lead-delete-cell">
                 <button
                   type="button"
-                  class="lead-delete-btn"
+                  class="lead-delete-btn lead-icon-btn"
                   data-lead-id="${l.id}"
                   title="מחק ליד"
                   aria-label="מחק ליד"
-                >🗑️</button>
+                >${LEAD_ICON_TRASH}</button>
               </td>
             </tr>`;
         })
@@ -1446,6 +1638,7 @@
           <table class="leads-table">
             <thead>
               <tr>
+                <th class="lead-send-cell" title="שליחת הודעה ראשונה">שליחה</th>
                 <th>שם</th>
                 <th>שם העסק</th>
                 <th>שם לשליחת הודעה</th>
@@ -1464,6 +1657,7 @@
       bindLeadStatusSelects();
       bindLeadMessageNameEditors();
       bindLeadDeleteButtons();
+      bindLeadSendButtons();
     }
 
     loadConversations();

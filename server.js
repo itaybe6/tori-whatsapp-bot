@@ -1,11 +1,13 @@
 require("dotenv").config();
 const express = require("express");
 const multer = require("multer");
-const { sendMessage } = require("./src/whatsapp");
+const { sendMessage, sendProactiveMessage } = require("./src/whatsapp");
 const { parseExcelBuffer } = require("./src/excelImport");
+const { extractMessageName } = require("./src/leadMessageName");
 const {
   getReply,
   getOpeningMessage,
+  getFirstLeadMessage,
   conversations,
 } = require("./src/agent");
 const {
@@ -17,11 +19,13 @@ const {
   getMessages,
   deleteConversation,
   getLeads,
+  getLeadById,
   getLeadsCreatedAfter,
   getExistingLeadPhones,
   bulkInsertLeads,
   updateLead,
   backfillMessageNames,
+  createLead,
   deleteLead,
   checkConnection,
 } = require("./src/db");
@@ -44,6 +48,12 @@ const upload = multer({
 
 const recentAgentSends = new Map();
 const AGENT_SEND_DEDUPE_MS = 10000;
+
+const FIRST_MESSAGE_ALLOWED_SOURCES = new Set(["manual", "excel-import"]);
+
+function canSendFirstMessageToLead(lead) {
+  return FIRST_MESSAGE_ALLOWED_SOURCES.has(String(lead?.source || ""));
+}
 
 function isDuplicateAgentSend(phone, message) {
   const normalizedMessage = String(message).trim();
@@ -169,6 +179,42 @@ app.get("/api/leads", async (req, res) => {
   }
 });
 
+app.post("/api/leads", async (req, res) => {
+  const { business, phone, business_type, name, notes } = req.body || {};
+  const businessName = String(business || "").trim();
+  const phoneNorm = normalizePhone(phone);
+
+  if (!businessName) {
+    return res.status(400).json({ error: "חסר שם עסק" });
+  }
+  if (!phoneNorm) {
+    return res.status(400).json({ error: "מספר טלפון לא תקין" });
+  }
+
+  try {
+    const existing = await getExistingLeadPhones();
+    if (existing.has(phoneNorm)) {
+      return res.status(400).json({ error: "מספר טלפון כבר קיים בטבלה" });
+    }
+
+    const row = await createLead({
+      name: String(name || businessName).trim(),
+      business: businessName,
+      phone: phoneNorm,
+      business_type: String(business_type || "סלון ציפורניים").trim(),
+      notes: notes ? String(notes).trim() : null,
+      source: "manual",
+      message_name: extractMessageName(businessName),
+    });
+
+    console.log(`➕ ליד חדש נוסף ידנית: ${row.business} (${row.phone})`);
+    res.json(row);
+  } catch (err) {
+    console.error("❌ create lead:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.patch("/api/leads/:id", async (req, res) => {
   const { id } = req.params;
   const { status, message_name } = req.body || {};
@@ -195,6 +241,49 @@ app.delete("/api/leads/:id", async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error("❌ delete lead:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/leads/:id/send-first-message", async (req, res) => {
+  const { id } = req.params;
+  if (!id) {
+    return res.status(400).json({ error: "חסר id" });
+  }
+
+  try {
+    const lead = await getLeadById(id);
+    if (!lead) {
+      return res.status(404).json({ error: "ליד לא נמצא" });
+    }
+
+    if (!canSendFirstMessageToLead(lead)) {
+      return res.status(403).json({
+        error: "שליחת הודעה ראשונה זמינה רק ללידים ממקור ידני או ייבוא Excel",
+      });
+    }
+
+    const messageName = String(lead.message_name || "").trim();
+    if (!messageName) {
+      return res.status(400).json({ error: "חסר שם לשליחת הודעה" });
+    }
+
+    const phone = normalizePhone(lead.phone);
+    if (!phone) {
+      return res.status(400).json({ error: "מספר טלפון לא תקין" });
+    }
+
+    const text = getFirstLeadMessage(messageName);
+    await upsertConversation(phone, messageName);
+    await sendProactiveMessage(phone, messageName, getFirstLeadTemplateOptions());
+    await saveMessage(phone, "bot", text);
+    await updateLead(id, { status: "message_sent" });
+    conversations.set(phone, [{ role: "model", parts: [{ text }] }]);
+
+    console.log(`📨 הודעה ראשונה נשלחה ל-${messageName} (${phone})`);
+    res.json({ success: true, phone, message: text });
+  } catch (err) {
+    console.error("❌ send first message:", err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -319,8 +408,23 @@ app.post("/webhook", async (req, res) => {
     const change = entry?.changes?.[0];
     const value = change?.value;
     const message = value?.messages?.[0];
+    const statusUpdate = value?.statuses?.[0];
 
-    // מסנן status updates (delivered, read וכו')
+    if (statusUpdate) {
+      const { status, recipient_id: to, errors } = statusUpdate;
+      if (status === "failed") {
+        console.error(
+          `❌ משלוח נכשל ל-${to}:`,
+          errors?.map((e) => `${e.code}: ${e.title}`).join("; ") || statusUpdate
+        );
+      } else if (status === "delivered") {
+        console.log(`📬 נמסר ל-${to}`);
+      } else if (status === "read") {
+        console.log(`👁️  נקרא על ידי ${to}`);
+      }
+      return;
+    }
+
     if (!message) return;
 
     // מסנן רק הודעות טקסט
@@ -406,6 +510,21 @@ function normalizePhone(raw) {
 const recentOpeningSends = new Map();
 const OPENING_DEDUPE_MS = 60_000;
 
+function getFirstLeadTemplateOptions() {
+  if (process.env.WHATSAPP_FIRST_LEAD_TEMPLATE) {
+    return {
+      templateName: process.env.WHATSAPP_FIRST_LEAD_TEMPLATE,
+      languageCode:
+        process.env.WHATSAPP_FIRST_LEAD_TEMPLATE_LANG ||
+        process.env.WHATSAPP_OPENING_TEMPLATE_LANG ||
+        "he",
+      useNameVar:
+        process.env.WHATSAPP_FIRST_LEAD_TEMPLATE_HAS_NAME === "true",
+    };
+  }
+  return {};
+}
+
 function shouldSendOpening(phone) {
   const now = Date.now();
   for (const [p, t] of recentOpeningSends.entries()) {
@@ -428,7 +547,7 @@ async function sendOpening(phone, name) {
   }
   const opening = getOpeningMessage(name || "");
   await upsertConversation(normalized, name || "");
-  await sendMessage(normalized, opening);
+  await sendProactiveMessage(normalized, name || "");
   await saveMessage(normalized, "bot", opening);
   conversations.set(normalized, [
     { role: "model", parts: [{ text: opening }] },

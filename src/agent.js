@@ -203,4 +203,15 @@ function getOpeningMessage(name) {
   return `${greeting}, אני אליה מצוות טורי 🙂 ראיתי שהשארת פרטים והתעניינת באפליקציה. מאיזה תחום אתה מגיע?`;
 }
 
-module.exports = { getReply, getOpeningMessage, conversations };
+function getFirstLeadMessage(messageName) {
+  const name = String(messageName || "").trim();
+  const greeting = name ? `היי ${name}` : "היי";
+  return `${greeting} מה שלומך ?\nהבנתי שאת בונת ציפורניים , זה נכון ?`;
+}
+
+module.exports = {
+  getReply,
+  getOpeningMessage,
+  getFirstLeadMessage,
+  conversations,
+};

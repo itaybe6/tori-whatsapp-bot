@@ -211,6 +211,31 @@ async function persistComputedMessageNames(rows) {
   return results.filter((r) => r.status === "fulfilled").length;
 }
 
+async function getLeadById(id) {
+  if (!id) throw new Error("חסר id");
+  try {
+    const db = requireClient();
+    let { data, error } = await db
+      .from("leads")
+      .select(LEADS_SELECT_FULL)
+      .eq("id", id)
+      .maybeSingle();
+
+    if (error && isMissingMessageNameColumn(error)) {
+      ({ data, error } = await db
+        .from("leads")
+        .select(LEADS_SELECT_BASIC)
+        .eq("id", id)
+        .maybeSingle());
+    }
+    if (error) throw error;
+    if (!data) return null;
+    return withMessageNameFallback(data);
+  } catch (err) {
+    throw wrapDbError(err);
+  }
+}
+
 async function getLeads() {
   try {
     const rows = await fetchLeadsRows();
@@ -314,6 +339,17 @@ async function backfillMessageNames() {
   return persistComputedMessageNames(rows);
 }
 
+async function createLead(lead) {
+  try {
+    const db = requireClient();
+    const { data, error } = await db.from("leads").insert(lead).select().single();
+    if (error) throw error;
+    return withMessageNameFallback(data);
+  } catch (err) {
+    throw wrapDbError(err);
+  }
+}
+
 async function deleteLead(id) {
   if (!id) throw new Error("חסר id");
   try {
@@ -353,9 +389,11 @@ module.exports = {
   getMessages,
   deleteConversation,
   getLeads,
+  getLeadById,
   getLeadsCreatedAfter,
   getExistingLeadPhones,
   bulkInsertLeads,
+  createLead,
   deleteLead,
   updateLead,
   updateLeadStatus,
