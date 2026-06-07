@@ -30,6 +30,7 @@ create table if not exists public.leads (
   source text default 'landing-page',
   status text not null default 'no_contact'
     check (status in ('no_contact', 'message_sent', 'relevant', 'not_relevant')),
+  message_name text not null default '',
   created_at timestamptz not null default now()
 );
 
@@ -38,6 +39,7 @@ create table if not exists public.leads (
 -- alter table public.leads drop constraint if exists leads_status_check;
 -- alter table public.leads add constraint leads_status_check
 --   check (status in ('no_contact', 'message_sent', 'relevant', 'not_relevant'));
+-- alter table public.leads add column if not exists message_name text not null default '';
 
 -- הפעלת RLS
 alter table public.leads enable row level security;

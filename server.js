@@ -20,7 +20,9 @@ const {
   getLeadsCreatedAfter,
   getExistingLeadPhones,
   bulkInsertLeads,
-  updateLeadStatus,
+  updateLead,
+  backfillMessageNames,
+  deleteLead,
   checkConnection,
 } = require("./src/db");
 
@@ -68,7 +70,7 @@ app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader(
     "Access-Control-Allow-Methods",
-    "GET, POST, DELETE, OPTIONS"
+    "GET, POST, PATCH, DELETE, OPTIONS"
   );
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
   if (req.method === "OPTIONS") return res.sendStatus(204);
@@ -169,15 +171,30 @@ app.get("/api/leads", async (req, res) => {
 
 app.patch("/api/leads/:id", async (req, res) => {
   const { id } = req.params;
-  const { status } = req.body || {};
-  if (!id || !status) {
-    return res.status(400).json({ error: "חסר id או status" });
+  const { status, message_name } = req.body || {};
+  if (!id || (status === undefined && message_name === undefined)) {
+    return res.status(400).json({ error: "חסר id או שדה לעדכון" });
   }
   try {
-    const row = await updateLeadStatus(id, status);
+    const row = await updateLead(id, { status, message_name });
     res.json(row);
   } catch (err) {
-    console.error("❌ update lead status:", err);
+    console.error("❌ update lead:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete("/api/leads/:id", async (req, res) => {
+  const { id } = req.params;
+  if (!id) {
+    return res.status(400).json({ error: "חסר id" });
+  }
+  try {
+    await deleteLead(id);
+    console.log(`🗑️  ליד נמחק: ${id}`);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("❌ delete lead:", err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -216,7 +233,10 @@ app.post("/api/leads/import", upload.single("file"), async (req, res) => {
       if (sendOpeningFlag) {
         for (const lead of inserted) {
           try {
-            const result = await sendOpening(lead.phone, lead.name || "");
+            const result = await sendOpening(
+              lead.phone,
+              lead.message_name || lead.name || ""
+            );
             if (!result.skipped) openingsSent++;
           } catch (err) {
             console.error(
@@ -469,7 +489,7 @@ async function pollNewLeads() {
 
     for (const lead of fresh) {
       try {
-        await sendOpening(lead.phone, lead.name || "");
+        await sendOpening(lead.phone, lead.message_name || lead.name || "");
         console.log(
           `📨 הודעת פתיחה נשלחה ל-${lead.name || "ליד חדש"} (${lead.phone})`
         );
@@ -513,5 +533,13 @@ app.listen(PORT, () => {
     .then(() => console.log("✅ Supabase מחובר"))
     .catch((err) =>
       console.warn(`⚠️ Supabase לא זמין: ${err.message}`)
+    );
+
+  backfillMessageNames()
+    .then((n) => {
+      if (n > 0) console.log(`✏️  שמות לשליחת הודעה עודכנו אוטומטית: ${n}`);
+    })
+    .catch((err) =>
+      console.warn(`⚠️ אתחול שמות לידים: ${err.message}`)
     );
 });

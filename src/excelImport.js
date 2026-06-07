@@ -1,4 +1,5 @@
 const XLSX = require("xlsx");
+const { extractMessageName } = require("./leadMessageName");
 
 /**
  * מנרמל מספר טלפון לפורמט WhatsApp: ספרות בלבד + קידומת מדינה.
@@ -86,6 +87,7 @@ function parseExcelBuffer(buffer, options = {}) {
         business_type: businessType,
         notes: buildNotes(row),
         source,
+        message_name: extractMessageName(business),
       });
     }
   }

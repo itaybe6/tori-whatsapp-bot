@@ -4,12 +4,15 @@
   "description": "Tori WhatsApp Sales Bot",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
+    "start": "node scripts/start.js",
+    "start:bot": "node server.js",
+    "start:dashboard": "node dashboard-server.js",
     "dev": "nodemon server.js",
     "tunnel": "node scripts/tunnel.js",
     "dashboard": "node dashboard-server.js",
     "import-excel": "node scripts/import-excel.js",
-    "check-supabase": "node scripts/check-supabase.js"
+    "check-supabase": "node scripts/check-supabase.js",
+    "backfill-message-names": "node scripts/backfill-message-names.js"
   },
   "dependencies": {
     "@google/generative-ai": "^0.21.0",

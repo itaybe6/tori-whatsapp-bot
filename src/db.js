@@ -1,6 +1,7 @@
 require("dotenv").config();
 const { createClient } = require("@supabase/supabase-js");
 const ws = require("ws");
+const { extractMessageName } = require("./leadMessageName");
 
 const rawUrl = process.env.SUPABASE_URL;
 const key = process.env.SUPABASE_SERVICE_KEY;
@@ -163,17 +164,59 @@ async function deleteConversation(phone) {
   if (error) throw error;
 }
 
+const LEADS_SELECT_FULL =
+  "id, name, business, phone, business_type, notes, source, status, message_name, created_at";
+const LEADS_SELECT_BASIC =
+  "id, name, business, phone, business_type, notes, source, status, created_at";
+
+function isMissingMessageNameColumn(err) {
+  const msg = String(err?.message || err || "");
+  return msg.includes("message_name") && msg.includes("does not exist");
+}
+
+async function fetchLeadsRows() {
+  const db = requireClient();
+  let { data, error } = await db
+    .from("leads")
+    .select(LEADS_SELECT_FULL)
+    .order("created_at", { ascending: false });
+
+  if (error && isMissingMessageNameColumn(error)) {
+    ({ data, error } = await db
+      .from("leads")
+      .select(LEADS_SELECT_BASIC)
+      .order("created_at", { ascending: false }));
+  }
+  if (error) throw error;
+  return data ?? [];
+}
+
+async function persistComputedMessageNames(rows) {
+  const db = requireClient();
+  const pending = [];
+
+  for (const row of rows) {
+    const stored = String(row.message_name || "").trim();
+    if (stored) continue;
+    const computed = extractMessageName(row.business);
+    if (!computed) continue;
+    pending.push(
+      db.from("leads").update({ message_name: computed }).eq("id", row.id)
+    );
+  }
+
+  if (!pending.length) return 0;
+
+  const results = await Promise.allSettled(pending);
+  return results.filter((r) => r.status === "fulfilled").length;
+}
+
 async function getLeads() {
   try {
-    const db = requireClient();
-    const { data, error } = await db
-      .from("leads")
-      .select(
-        "id, name, business, phone, business_type, notes, source, status, created_at"
-      )
-      .order("created_at", { ascending: false });
-    if (error) throw error;
-    return data ?? [];
+    const rows = await fetchLeadsRows();
+    const enriched = rows.map(withMessageNameFallback);
+    persistComputedMessageNames(rows).catch(() => {});
+    return enriched;
   } catch (err) {
     throw wrapDbError(err);
   }
@@ -188,12 +231,12 @@ async function getLeadsCreatedAfter(isoTimestamp) {
   const { data, error } = await db
     .from("leads")
     .select(
-      "id, name, business, phone, business_type, notes, source, status, created_at"
+      "id, name, business, phone, business_type, notes, source, status, message_name, created_at"
     )
     .gt("created_at", isoTimestamp)
     .order("created_at", { ascending: true });
   if (error) throw error;
-  return data ?? [];
+  return (data ?? []).map(withMessageNameFallback);
 }
 
 /**
@@ -222,21 +265,61 @@ const LEAD_STATUSES = new Set([
 /**
  * מוסיף לידים בכמות — בחלקים של 50 שורות.
  */
-async function updateLeadStatus(id, status) {
-  if (!LEAD_STATUSES.has(status)) {
-    throw new Error("סטטוס לא תקין");
+function withMessageNameFallback(row) {
+  if (!row) return row;
+  return {
+    ...row,
+    message_name:
+      (row.message_name && String(row.message_name).trim()) ||
+      extractMessageName(row.business),
+  };
+}
+
+async function updateLead(id, fields = {}) {
+  const patch = {};
+  if (fields.status !== undefined) {
+    if (!LEAD_STATUSES.has(fields.status)) {
+      throw new Error("סטטוס לא תקין");
+    }
+    patch.status = fields.status;
+  }
+  if (fields.message_name !== undefined) {
+    patch.message_name = String(fields.message_name).trim().slice(0, 80);
+  }
+  if (!Object.keys(patch).length) {
+    throw new Error("אין שדות לעדכן");
   }
   try {
     const db = requireClient();
     const { data, error } = await db
       .from("leads")
-      .update({ status })
+      .update(patch)
       .eq("id", id)
-      .select("id, status")
+      .select("id, status, message_name")
       .maybeSingle();
     if (error) throw error;
     if (!data) throw new Error("ליד לא נמצא");
     return data;
+  } catch (err) {
+    throw wrapDbError(err);
+  }
+}
+
+async function updateLeadStatus(id, status) {
+  return updateLead(id, { status });
+}
+
+async function backfillMessageNames() {
+  const rows = await fetchLeadsRows();
+  return persistComputedMessageNames(rows);
+}
+
+async function deleteLead(id) {
+  if (!id) throw new Error("חסר id");
+  try {
+    const db = requireClient();
+    const { error } = await db.from("leads").delete().eq("id", id);
+    if (error) throw error;
   } catch (err) {
     throw wrapDbError(err);
   }
@@ -273,7 +356,10 @@ module.exports = {
   getLeadsCreatedAfter,
   getExistingLeadPhones,
   bulkInsertLeads,
+  deleteLead,
+  updateLead,
   updateLeadStatus,
+  backfillMessageNames,
   checkConnection,
   wrapDbError,
   LEAD_STATUSES,

@@ -175,9 +175,14 @@
       border-bottom: 1px solid rgba(37, 99, 235, 0.08);
       transition: background 0.18s ease, box-shadow 0.18s ease;
     }
-    table.leads-table tbody tr:hover {
-      background: linear-gradient(90deg, rgba(59, 130, 246, 0.06), rgba(255, 255, 255, 0.4));
-    }
+    table.leads-table tbody tr.row-no_contact { background: #f8fafc; }
+    table.leads-table tbody tr.row-message_sent { background: #eff6ff; }
+    table.leads-table tbody tr.row-relevant { background: #ecfdf5; }
+    table.leads-table tbody tr.row-not_relevant { background: #fef2f2; }
+    table.leads-table tbody tr.row-no_contact:hover { background: #f1f5f9; }
+    table.leads-table tbody tr.row-message_sent:hover { background: #dbeafe; }
+    table.leads-table tbody tr.row-relevant:hover { background: #d1fae5; }
+    table.leads-table tbody tr.row-not_relevant:hover { background: #fee2e2; }
     table.leads-table tbody tr:last-child { border-bottom: none; }
     .lead-name-cell {
       display: flex;
@@ -251,6 +256,140 @@
       font-size: 0.78rem;
       color: var(--muted);
       white-space: nowrap;
+    }
+    .lead-message-name-cell {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      min-width: 0;
+    }
+    .lead-message-name {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.32rem 0.7rem;
+      border-radius: 999px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #1e40af;
+      background: rgba(255, 255, 255, 0.92);
+      border: 1px solid rgba(37, 99, 235, 0.18);
+      white-space: nowrap;
+    }
+    .lead-message-name.empty {
+      color: var(--muted);
+      font-weight: 500;
+      background: rgba(255, 255, 255, 0.55);
+    }
+    .lead-message-name-input {
+      width: 100%;
+      min-width: 72px;
+      max-width: 120px;
+      border: 1px solid rgba(37, 99, 235, 0.35);
+      border-radius: 10px;
+      padding: 0.35rem 0.55rem;
+      font: inherit;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text);
+      background: #fff;
+      outline: none;
+    }
+    .lead-message-name-input:focus {
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.14);
+    }
+    .lead-edit-btn[data-action="edit"] {
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.85rem;
+      height: 1.85rem;
+      font: inherit;
+      cursor: pointer;
+      border: none;
+      border-radius: 8px;
+      padding: 0;
+      font-size: 1rem;
+      line-height: 1;
+      color: var(--accent-strong);
+      background: transparent;
+      box-shadow: none;
+      transition: background 0.15s, opacity 0.15s;
+    }
+    .lead-edit-btn[data-action="edit"]:hover:not(:disabled) {
+      background: rgba(59, 130, 246, 0.1);
+      transform: none;
+      box-shadow: none;
+    }
+    .lead-edit-btn:disabled {
+      opacity: 0.5;
+      cursor: wait;
+    }
+    .lead-edit-btn.save,
+    .lead-edit-btn.cancel {
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: auto;
+      height: auto;
+      padding: 0.28rem 0.55rem;
+      font: inherit;
+      font-size: 0.72rem;
+      font-weight: 600;
+      cursor: pointer;
+      border-radius: 8px;
+      box-shadow: none;
+    }
+    .lead-edit-btn.save {
+      color: #15803d;
+      border-color: #bbf7d0;
+      background: #f0fdf4;
+    }
+    .lead-edit-btn.cancel {
+      color: #b91c1c;
+      border-color: #fecaca;
+      background: #fef2f2;
+    }
+    .lead-delete-cell {
+      width: 44px;
+      text-align: center;
+      padding-inline: 0.45rem !important;
+    }
+    .lead-delete-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.85rem;
+      height: 1.85rem;
+      border: none;
+      border-radius: 8px;
+      background: transparent;
+      color: #dc2626;
+      cursor: pointer;
+      font-size: 1rem;
+      line-height: 1;
+      box-shadow: none;
+      padding: 0;
+      transition: background 0.15s, opacity 0.15s;
+    }
+    .lead-delete-btn:hover:not(:disabled) {
+      background: rgba(220, 38, 38, 0.1);
+      transform: none;
+      box-shadow: none;
+    }
+    .lead-delete-btn:disabled {
+      opacity: 0.45;
+      cursor: wait;
+    }
+    .lead-message-name-cell.editing .lead-message-name,
+    .lead-message-name-cell.editing .lead-edit-btn[data-action="edit"] {
+      display: none;
+    }
+    .lead-message-name-cell:not(.editing) .lead-message-name-input,
+    .lead-message-name-cell:not(.editing) .lead-edit-btn[data-action="save"],
+    .lead-message-name-cell:not(.editing) .lead-edit-btn[data-action="cancel"] {
+      display: none;
     }
     .lead-status-wrap {
       position: relative;
@@ -680,6 +819,8 @@
     let activeTab = "conversations";
     let leadsCache = [];
     let leadStatusUpdateInFlight = new Set();
+    let leadNameUpdateInFlight = new Set();
+    let leadDeleteInFlight = new Set();
 
     const LEAD_STATUS_OPTIONS = [
       { value: "no_contact", label: "לא נוצר קשר" },
@@ -1100,6 +1241,114 @@
       sel.className = "lead-status-select status-" + (sel.value || "no_contact");
     }
 
+    function applyLeadRowStatusClass(row, status) {
+      if (!row) return;
+      row.className = "row-" + (status || "no_contact");
+    }
+
+    function bindLeadMessageNameEditors() {
+      document.querySelectorAll(".lead-message-name-cell").forEach((cell) => {
+        const id = cell.getAttribute("data-lead-id");
+        const display = cell.querySelector(".lead-message-name");
+        const input = cell.querySelector(".lead-message-name-input");
+        const btnEdit = cell.querySelector('[data-action="edit"]');
+        const btnSave = cell.querySelector('[data-action="save"]');
+        const btnCancel = cell.querySelector('[data-action="cancel"]');
+
+        function startEdit() {
+          const lead = leadsCache.find((l) => l.id === id);
+          input.value = (lead?.message_name || "").trim();
+          cell.classList.add("editing");
+          input.focus();
+          input.select();
+        }
+
+        function endEdit() {
+          cell.classList.remove("editing");
+        }
+
+        async function saveEdit() {
+          const newName = (input.value || "").trim();
+          const lead = leadsCache.find((l) => l.id === id);
+          const prevName = (lead?.message_name || "").trim();
+          if (!id || newName === prevName || leadNameUpdateInFlight.has(id)) {
+            endEdit();
+            return;
+          }
+          if (!newName) {
+            showError("שם לשליחת הודעה לא יכול להיות ריק");
+            return;
+          }
+
+          leadNameUpdateInFlight.add(id);
+          btnSave.disabled = true;
+          btnCancel.disabled = true;
+          if (lead) lead.message_name = newName;
+
+          try {
+            await api("PATCH", "/api/leads/" + encodeURIComponent(id), {
+              message_name: newName,
+            });
+            display.textContent = newName;
+            display.classList.remove("empty");
+            endEdit();
+          } catch (e) {
+            if (lead) lead.message_name = prevName;
+            showError(e.message || String(e));
+          } finally {
+            leadNameUpdateInFlight.delete(id);
+            btnSave.disabled = false;
+            btnCancel.disabled = false;
+          }
+        }
+
+        btnEdit.addEventListener("click", startEdit);
+        btnSave.addEventListener("click", saveEdit);
+        btnCancel.addEventListener("click", endEdit);
+        input.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            saveEdit();
+          }
+          if (e.key === "Escape") endEdit();
+        });
+      });
+    }
+
+    async function deleteLeadFlow(id) {
+      const lead = leadsCache.find((l) => l.id === id);
+      const label =
+        (lead?.message_name && lead.message_name.trim()) ||
+        (lead?.name && lead.name.trim()) ||
+        lead?.phone ||
+        "ליד זה";
+      const ok = window.confirm(`למחוק את ${label}?\nהפעולה לא ניתנת לשחזור.`);
+      if (!ok || leadDeleteInFlight.has(id)) return;
+
+      leadDeleteInFlight.add(id);
+      try {
+        await api("DELETE", "/api/leads/" + encodeURIComponent(id));
+        leadsCache = leadsCache.filter((l) => l.id !== id);
+        renderLeads();
+      } catch (e) {
+        showError(e.message || String(e));
+      } finally {
+        leadDeleteInFlight.delete(id);
+      }
+    }
+
+    function bindLeadDeleteButtons() {
+      document.querySelectorAll(".lead-delete-btn").forEach((btn) => {
+        btn.addEventListener("click", async (e) => {
+          e.stopPropagation();
+          const id = btn.getAttribute("data-lead-id");
+          if (!id) return;
+          btn.disabled = true;
+          await deleteLeadFlow(id);
+        });
+      });
+    }
+
     function bindLeadStatusSelects() {
       document.querySelectorAll(".lead-status-select").forEach((sel) => {
         applyLeadStatusSelectStyle(sel);
@@ -1119,6 +1368,7 @@
 
           const lead = leadsCache.find((l) => l.id === id);
           if (lead) lead.status = newStatus;
+          applyLeadRowStatusClass(sel.closest("tr"), newStatus);
 
           try {
             await api("PATCH", "/api/leads/" + encodeURIComponent(id), {
@@ -1128,6 +1378,7 @@
             if (lead) lead.status = prevStatus;
             sel.value = prevStatus;
             applyLeadStatusSelectStyle(sel);
+            applyLeadRowStatusClass(sel.closest("tr"), prevStatus);
             showError(e.message || String(e));
           } finally {
             leadStatusUpdateInFlight.delete(id);
@@ -1152,8 +1403,10 @@
           const name = l.name || "";
           const business = l.business || "";
           const source = l.source || "—";
+          const status = l.status || "no_contact";
+          const messageName = (l.message_name || "").trim();
           return `
-            <tr>
+            <tr class="row-${status}">
               <td>
                 <div class="lead-name-cell">
                   <span class="lead-avatar" aria-hidden="true">${escapeHtml(leadInitial(name))}</span>
@@ -1161,11 +1414,29 @@
                 </div>
               </td>
               <td><span class="lead-business" title="${escapeHtml(business)}">${escapeHtml(business)}</span></td>
+              <td>
+                <div class="lead-message-name-cell" data-lead-id="${l.id}">
+                  <span class="lead-message-name${messageName ? "" : " empty"}">${escapeHtml(messageName || "—")}</span>
+                  <input class="lead-message-name-input" type="text" aria-label="עריכת שם לשליחת הודעה" />
+                  <button type="button" class="lead-edit-btn" data-action="edit" title="עריכת שם" aria-label="עריכת שם">✏️</button>
+                  <button type="button" class="lead-edit-btn save" data-action="save" title="שמירה">שמור</button>
+                  <button type="button" class="lead-edit-btn cancel" data-action="cancel" title="ביטול">ביטול</button>
+                </div>
+              </td>
               <td><span class="lead-tag">${escapeHtml(l.business_type || "—")}</span></td>
               <td class="phone">${escapeHtml(l.phone || "")}</td>
               <td><span class="lead-source">${escapeHtml(source)}</span></td>
               <td><div class="lead-status-wrap">${leadStatusSelectHtml(l)}</div></td>
               <td><span class="lead-date">${formatTime(l.created_at)}</span></td>
+              <td class="lead-delete-cell">
+                <button
+                  type="button"
+                  class="lead-delete-btn"
+                  data-lead-id="${l.id}"
+                  title="מחק ליד"
+                  aria-label="מחק ליד"
+                >🗑️</button>
+              </td>
             </tr>`;
         })
         .join("");
@@ -1177,11 +1448,13 @@
               <tr>
                 <th>שם</th>
                 <th>שם העסק</th>
+                <th>שם לשליחת הודעה</th>
                 <th>תחום</th>
                 <th>טלפון</th>
                 <th>מקור</th>
                 <th>סטטוס</th>
                 <th>נכנס בתאריך</th>
+                <th class="lead-delete-cell" aria-label="מחיקה"></th>
               </tr>
             </thead>
             <tbody>${rows}</tbody>
@@ -1189,6 +1462,8 @@
         </div>`;
 
       bindLeadStatusSelects();
+      bindLeadMessageNameEditors();
+      bindLeadDeleteButtons();
     }
 
     loadConversations();
