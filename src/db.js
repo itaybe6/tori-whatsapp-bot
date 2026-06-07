@@ -141,17 +141,37 @@ async function markConversationProactive(phone) {
   if (error && !isMissingProactiveColumn(error)) throw error;
 }
 
-async function markLeadActiveByPhone(phone) {
+async function markLeadStatusByPhone(phone, status) {
+  if (!LEAD_STATUSES.has(status)) return;
   try {
     const db = requireClient();
     const { error } = await db
       .from("leads")
-      .update({ status: "active_conversation" })
+      .update({ status })
       .eq("phone", phone);
     if (error) throw error;
   } catch (err) {
     console.warn(`⚠️ לא עודכן סטטוס ליד ל-${phone}: ${err.message}`);
   }
+}
+
+async function markLeadActiveByPhone(phone) {
+  return markLeadStatusByPhone(phone, "active_conversation");
+}
+
+async function isConversationProactive(phone) {
+  const db = requireClient();
+  let { data, error } = await db
+    .from("conversations")
+    .select("proactive")
+    .eq("phone", phone)
+    .maybeSingle();
+
+  if (error && isMissingProactiveColumn(error)) {
+    return false;
+  }
+  if (error) throw error;
+  return Boolean(data?.proactive);
 }
 
 async function setConversationStatus(phone, status) {
@@ -186,6 +206,35 @@ const CONVERSATIONS_SELECT_FULL =
 const CONVERSATIONS_SELECT_BASIC =
   "phone, name, status, last_message_at, last_message";
 
+async function enrichConversationsWithUserMessages(rows) {
+  if (!rows.length) return rows;
+  const db = requireClient();
+  const phones = rows.map((r) => r.phone);
+  const { data: userMsgs, error } = await db
+    .from("messages")
+    .select("phone, content, created_at")
+    .in("phone", phones)
+    .eq("role", "user")
+    .order("created_at", { ascending: false });
+
+  if (error) return rows;
+
+  const latestByPhone = new Map();
+  for (const msg of userMsgs ?? []) {
+    if (!latestByPhone.has(msg.phone)) {
+      latestByPhone.set(msg.phone, msg.content);
+    }
+  }
+
+  return rows.map((row) => ({
+    ...row,
+    last_user_message:
+      latestByPhone.get(row.phone) ||
+      row.last_user_message ||
+      "",
+  }));
+}
+
 async function getConversations() {
   const db = requireClient();
   let { data, error } = await db
@@ -200,11 +249,14 @@ async function getConversations() {
       .order("last_message_at", { ascending: false }));
   }
   if (error) throw error;
-  return (data ?? []).map((row) => ({
+
+  const normalized = (data ?? []).map((row) => ({
     ...row,
     last_user_message: row.last_user_message || "",
     proactive: Boolean(row.proactive),
   }));
+
+  return enrichConversationsWithUserMessages(normalized);
 }
 
 async function getMessages(phone) {
@@ -449,6 +501,8 @@ module.exports = {
   getConversationStatus,
   saveMessage,
   markConversationProactive,
+  isConversationProactive,
+  markLeadStatusByPhone,
   markLeadActiveByPhone,
   setConversationStatus,
   getConversations,

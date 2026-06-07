@@ -11,10 +11,20 @@ const {
   conversations,
 } = require("./src/agent");
 const {
+  getProactiveReply,
+  getProactiveReplyDelayMs,
+} = require("./src/proactiveFlow");
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+const {
   upsertConversation,
   getConversationStatus,
   saveMessage,
   markConversationProactive,
+  isConversationProactive,
+  markLeadStatusByPhone,
   markLeadActiveByPhone,
   setConversationStatus,
   getConversations,
@@ -454,37 +464,53 @@ app.post("/webhook", async (req, res) => {
       return;
     }
 
-    // המקור-אמת להיסטוריה הוא ה-DB (כדי שהבוט ימשיך שיחה גם אחרי restart)
-    const priorMessages = await getMessages(from);
-    const isFirstMessage = priorMessages.length === 0;
-
-    if (!conversations.has(from) && priorMessages.length > 0) {
-      const hydrated = priorMessages.map((m) => ({
-        role: m.role === "user" ? "user" : "model",
-        parts: [{ text: m.content || "" }],
-      }));
-      conversations.set(from, hydrated);
-    }
-
     await saveMessage(from, "user", text);
     await markLeadActiveByPhone(from);
 
+    const allMessages = await getMessages(from);
+    const isProactive = await isConversationProactive(from);
     let reply;
+    let leadStatus;
 
-    if (isFirstMessage) {
-      const opening = getOpeningMessage(name);
-      await sendMessage(from, opening);
-
-      // פורמט Gemini: user | model + parts — רק הפתיחה; getReply יוסיף user + תשובה
-      conversations.set(from, [
-        { role: "model", parts: [{ text: opening }] },
-      ]);
-
-      await saveMessage(from, "bot", opening);
-
-      reply = await getReply(from, text);
+    if (isProactive) {
+      const result = getProactiveReply(allMessages);
+      reply = result.reply;
+      leadStatus = result.leadStatus;
+      console.log(`   שיחה יזומה — שלב אוטומטי`);
     } else {
-      reply = await getReply(from, text);
+      const priorMessages = allMessages.slice(0, -1);
+      const isFirstMessage = priorMessages.length === 0;
+
+      if (!conversations.has(from) && priorMessages.length > 0) {
+        const hydrated = priorMessages.map((m) => ({
+          role: m.role === "user" ? "user" : "model",
+          parts: [{ text: m.content || "" }],
+        }));
+        conversations.set(from, hydrated);
+      }
+
+      if (isFirstMessage) {
+        const opening = getOpeningMessage(name);
+        await sendMessage(from, opening);
+        conversations.set(from, [
+          { role: "model", parts: [{ text: opening }] },
+        ]);
+        await saveMessage(from, "bot", opening);
+        reply = await getReply(from, text);
+      } else {
+        reply = await getReply(from, text);
+      }
+    }
+
+    if (leadStatus) {
+      await markLeadStatusByPhone(from, leadStatus);
+      console.log(`   סטטוס ליד עודכן: ${leadStatus}`);
+    }
+
+    if (isProactive) {
+      const delayMs = getProactiveReplyDelayMs();
+      console.log(`   ממתין ${Math.round(delayMs / 1000)}s לפני תשובה (שיחה יזומה)`);
+      await sleep(delayMs);
     }
 
     console.log(`   תשובה: ${reply}`);
@@ -656,7 +682,10 @@ app.listen(PORT, () => {
   console.log(`\n🚀 Tori WhatsApp Bot רץ על פורט ${PORT}`);
   console.log(`📡 Webhook URL: http://localhost:${PORT}/webhook`);
   console.log(`📤 שליחה יזומה: POST http://localhost:${PORT}/send-opening`);
-  console.log(`📊 API דשבורד: http://localhost:${PORT}/api/conversations\n`);
+  console.log(`📊 API דשבורד: http://localhost:${PORT}/api/conversations`);
+  console.log(
+    `💡 לקבלת תשובות מלקוחות: הרץ npm run tunnel (טרמינל נפרד) ועדכן Webhook ב-Meta לכתובת ה-ngrok\n`
+  );
 
   checkConnection()
     .then(() => console.log("✅ Supabase מחובר"))
