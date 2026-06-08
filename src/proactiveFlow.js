@@ -69,19 +69,36 @@ function isNailTechReAsk(reply, messages) {
   );
 }
 
+const NEGATIVE_GOODBYE = "הבנתי, סליחה על ההפרעה! בהצלחה ויום טוב 🙂";
+const INTEREST_NUDGE =
+  "אם זה מעניין אותך, נשמח לתאם שיחת טלפון קצרה ולהסביר הכל 🙂";
+
 /**
- * מונע שליחת הודעות מעקב אסורות. מחזיר null = לא לשלוח כלום.
+ * שכבת ביטחון אחרי תשובת ה-AI. לעולם לא משתיקה את הבוט באמצע שיחה —
+ * אם ה-AI חזר ריק או חזר על השאלה האסורה, מחליפה בתשובה ענייניות שמקדמת את השיחה.
  */
 function sanitizeProactiveReply(reply, messages, lastUser) {
-  if (!isNailTechReAsk(reply, messages)) return reply;
+  const clean = String(reply || "").trim();
 
-  if (isClearlyNegative(lastUser)) {
-    return "הבנתי, בהצלחה ותודה! יום טוב 🙂";
+  // תשובה ריקה מה-AI — אל תשתיקי את הבוט, החזירי תשובה הולמת לפי ההקשר.
+  if (!clean) {
+    if (isClearlyNegative(lastUser)) return NEGATIVE_GOODBYE;
+    if (!botAlreadyPitched(messages) && isNailTechConfirmation(lastUser)) {
+      return PITCH_MESSAGE;
+    }
+    return INTEREST_NUDGE;
   }
-  if (!botAlreadyPitched(messages) && isNailTechConfirmation(lastUser)) {
+
+  if (!isNailTechReAsk(clean, messages)) return clean;
+
+  // ה-AI ניסה לשאול שוב "את בונה ציפורניים?" — אסור. מחליפים בתשובה נכונה.
+  if (isClearlyNegative(lastUser)) {
+    return NEGATIVE_GOODBYE;
+  }
+  if (!botAlreadyPitched(messages)) {
     return PITCH_MESSAGE;
   }
-  return null;
+  return INTEREST_NUDGE;
 }
 
 /** הבוט עונה רק אם ההודעה האחרונה בשיחה היא מהלקוחה */
