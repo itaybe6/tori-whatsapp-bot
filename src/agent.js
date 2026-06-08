@@ -8,6 +8,29 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const GEMINI_MODEL =
   process.env.GEMINI_MODEL?.trim() || "gemini-2.5-flash";
 
+const WHATSAPP_STYLE = `**סגנון וואטסאפ ישראלי — חוקי ברזל:**
+- משפט אחד קצר. מקסימום שניים רק אם חייבים.
+- 5–15 מילים. לעולם יותר מ-20 מילים.
+- ענייני וישיר — בלי הקדמות, בלי פסקאות, בלי רשימות, בלי כוכביות.
+- כמו הודעה שחברה שולחת — לא כמו מייל או פרסומת.
+- שאלה של הלקוח → תשובה ישירה, בלי "וואו" / "מעולה" / "מהמם" בהתחלה (אלא אם באמת מתאים).
+- דוגמאות טובות: "249 ש״ח בחודש, בלי הקמה" / "רוצה לשמוע עוד?" / "הבנתי, בהצלחה ותודה 🙂"`;
+
+const GENERATION_CONFIG = {
+  maxOutputTokens: Number(process.env.GEMINI_MAX_OUTPUT_TOKENS) || 70,
+  temperature: 0.65,
+};
+
+function formatBotReply(text) {
+  return String(text || "")
+    .trim()
+    .replace(/^אליה:\s*/i, "")
+    .replace(/\*\*/g, "")
+    .replace(/\n+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -97,13 +120,9 @@ function buildSystemPrompt() {
 - אם הוא שואל שאלה על Tori באמצע — תעני קצר ואז תחזרי לאיסוף הפרטים.
 - אל תשאלי שתי שאלות באותה הודעה. שאלה אחת בלבד בכל פעם.
 
-**איך מדברים בוואטסאפ — חוקי ברזל:**
-- כל תשובה: משפט אחד קצר. מקסימום שניים אם ממש חייבים.
-- עד 20 מילים בסך הכל. הרבה פעמים גם 5–10 מילים זה מספיק.
-- אסור פסקאות. אסור רשימות עם מקפים או נקודות. אסור כוכביות (**).
-- ברכי רק בהודעה הראשונה. אל תפתחי כל תשובה ב"היי" / "וואו" / "מעולה".
-- אל תציפי מידע. גם אם יש הרבה לספר — תני פיסה אחת קטנה.
-- כתבי כאילו את מתכתבת עם חבר, לא כותבת מייל.
+${WHATSAPP_STYLE}
+
+ברכי רק בהודעה הראשונה. אל תפתחי כל תשובה ב"היי".
 
 **טון:**
 - חם, אנושי, ישיר. בלי שפה רובוטית או "שיווקית".
@@ -140,6 +159,7 @@ function buildModel() {
   return genAI.getGenerativeModel({
     model: GEMINI_MODEL,
     systemInstruction: buildSystemPrompt(),
+    generationConfig: GENERATION_CONFIG,
   });
 }
 
@@ -165,7 +185,7 @@ async function getReply(phone, incomingText) {
     const chat = buildModel().startChat({ history: histForChat });
     try {
       const result = await chat.sendMessage(incomingText);
-      const reply = result.response.text();
+      const reply = formatBotReply(result.response.text());
 
       history.push(
         { role: "user", parts: [{ text: incomingText }] },
@@ -209,9 +229,91 @@ function getFirstLeadMessage(messageName) {
   return `${greeting} מה שלומך ?\nהבנתי שאת בונת ציפורניים , זה נכון ?`;
 }
 
+function buildProactiveSystemPrompt() {
+  const callbackPhrase = getCallbackPhrase();
+  return `את אליה מצוות Tori. את מנהלת שיחות יזומות בוואטסאפ עם בונות ציפורניים.
+
+בכל פעם תקבלי את **תמליל השיחה המלא** — כולל ההודעות ששלחת (אליה) והתשובות של הלקוחה. קראי את כל השיחה לפני שאת כותבת — התשובה שלך חייבת להתאים להקשר ולמה שהלקוחה כתבה עכשיו.
+
+**המטרה:** להציע אפליקציה אישית לניהול תורים ולקוחות — בצורה טבעית ואנושית, לא דוחפת.
+
+**חוקים קריטיים:**
+1. את עונה **רק** כשיש בתמליל הודעה חדשה מהלקוחה. אם הלקוחה לא כתבה — אין תשובה (אסור לשלוח מעקב, תזכורת, או "רק לוודא").
+2. השאלה "את בונת ציפורניים?" כבר נשלחה בהודעה הראשונה — **אסור לשאול שוב**, אסור "רק לוודא", אסור "כן או לא?" על אותה שאלה.
+3. אם הלקוחה ענתה שלילה ("לא", "ממש לא", "לא נכון") — תגיבי בנימוס בלבד ("הבנתי, בהצלחה ותודה! יום טוב 🙂") ואל תציעי את האפליקציה.
+4. אם אישרה שהיא בונה ציפורניים — הציעי בקצרה אפליקציה אישית לבונות ציפורניים ושאלי אם זה מעניין.
+5. אם שואלת על מחיר, פיצ'רים, איך זה עובד — תעני ישירות לפי בסיס הידע, קצר.
+6. אם מעוניינת / אומרת כן — "${callbackPhrase} 🙏"
+7. אם לא מעוניינת אחרי ההצעה — "בסדר גמור, בהצלחה ותודה! יום טוב 🙂" — בלי לנסות לשכנע.
+
+${WHATSAPP_STYLE}
+
+**בסיס הידע (רק מידע זה — אל תמציאי):**
+---
+${knowledgeBase}
+---`;
+}
+
+function buildProactiveModel() {
+  return genAI.getGenerativeModel({
+    model: GEMINI_MODEL,
+    systemInstruction: buildProactiveSystemPrompt(),
+    generationConfig: GENERATION_CONFIG,
+  });
+}
+
+/** תמליל מלא לשליחה למודל — כולל כל הודעות הבוט והלקוחה */
+function formatProactiveTranscript(messages) {
+  return messages
+    .filter((m) => ["user", "bot", "human_agent"].includes(m.role))
+    .map((m) => {
+      const speaker = m.role === "user" ? "לקוחה" : "אליה";
+      return `${speaker}: ${String(m.content || "").trim()}`;
+    })
+    .join("\n");
+}
+
+async function getProactiveAIReply(_phone, _incomingText, dbMessages) {
+  const transcript = formatProactiveTranscript(dbMessages);
+  const prompt = `תמליל השיחה המלא בוואטסאפ:
+
+${transcript}
+
+---
+
+כתבי את התשובה הבאה של אליה להודעה האחרונה של הלקוחה.
+חובה: הודעה אחת קצרה (5–15 מילים), עניינית, בסגנון וואטסאפ ישראלי. רק את תוכן ההודעה — בלי תווית ובלי הסברים.`;
+
+  const maxAttempts = 5;
+  let lastErr;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      const result = await buildProactiveModel().generateContent(prompt);
+      return formatBotReply(result.response.text());
+    } catch (err) {
+      lastErr = err;
+      if (!isTransientGeminiError(err) || attempt === maxAttempts - 1) {
+        throw err;
+      }
+      let delayMs = parseRetryDelayMs(err);
+      if (delayMs == null) {
+        delayMs = Math.min(60_000, 4000 * (attempt + 1));
+      }
+      console.warn(
+        `⚠️ Gemini (שיחה יזומה) — ממתין ${Math.round(delayMs / 1000)}s, ניסיון ${attempt + 2}/${maxAttempts}`
+      );
+      await sleep(delayMs);
+    }
+  }
+
+  throw lastErr;
+}
+
 module.exports = {
   getReply,
   getOpeningMessage,
   getFirstLeadMessage,
+  getProactiveAIReply,
   conversations,
 };

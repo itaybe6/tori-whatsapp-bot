@@ -8,16 +8,42 @@ const {
   getReply,
   getOpeningMessage,
   getFirstLeadMessage,
+  getProactiveAIReply,
   conversations,
 } = require("./src/agent");
 const {
-  getProactiveReply,
-  getProactiveReplyDelayMs,
+  detectLeadStatus,
+  sanitizeProactiveReply,
+  shouldReplyToInbound,
 } = require("./src/proactiveFlow");
+const { getHumanReplyDelayMs } = require("./src/humanDelay");
+const { getAppSetting, setAppSetting } = require("./src/appSettings");
+const {
+  startHourlyNoContactScheduler,
+  getIsraelTimeParts,
+} = require("./src/hourlyNoContact");
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
+
+/** מונע עיבוד כפול של אותה הודעת webhook מ-Meta */
+const processedWebhookIds = new Map();
+const WEBHOOK_DEDUPE_MS = 24 * 60 * 60 * 1000;
+
+function isDuplicateWebhookMessage(messageId) {
+  if (!messageId) return false;
+  const now = Date.now();
+  for (const [id, ts] of processedWebhookIds.entries()) {
+    if (now - ts > WEBHOOK_DEDUPE_MS) processedWebhookIds.delete(id);
+  }
+  if (processedWebhookIds.has(messageId)) return true;
+  processedWebhookIds.set(messageId, now);
+  return false;
+}
+
+const AUTO_OPENING_SKIP_SOURCES = new Set(["manual", "excel-import"]);
+
 const {
   upsertConversation,
   getConversationStatus,
@@ -178,6 +204,39 @@ app.get("/api/health", async (_req, res) => {
     res.json({ ok: true, supabase: true });
   } catch (err) {
     res.status(503).json({ ok: false, supabase: false, error: err.message });
+  }
+});
+
+app.get("/api/settings/hourly-no-contact", async (_req, res) => {
+  try {
+    const enabled = await getAppSetting("hourly_no_contact_enabled", false);
+    res.json({ enabled: Boolean(enabled) });
+  } catch (err) {
+    console.error("❌ get hourly-no-contact setting:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.patch("/api/settings/hourly-no-contact", async (req, res) => {
+  const { enabled } = req.body || {};
+  if (typeof enabled !== "boolean") {
+    return res.status(400).json({ error: "חסר enabled (boolean)" });
+  }
+  try {
+    await setAppSetting("hourly_no_contact_enabled", enabled);
+    if (!enabled) {
+      await setAppSetting("hourly_no_contact_last_slot", null);
+    } else {
+      const { slotKey } = getIsraelTimeParts();
+      await setAppSetting("hourly_no_contact_last_slot", slotKey);
+    }
+    console.log(
+      `${enabled ? "✅" : "⏸️"} שליחה שעתית ללידים ללא קשר: ${enabled ? "פעילה" : "כבויה"}`
+    );
+    res.json({ enabled });
+  } catch (err) {
+    console.error("❌ set hourly-no-contact setting:", err);
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -440,6 +499,11 @@ app.post("/webhook", async (req, res) => {
 
     if (!message) return;
 
+    if (isDuplicateWebhookMessage(message.id)) {
+      console.log(`↻ webhook כפול — מדלג (${message.id})`);
+      return;
+    }
+
     // מסנן רק הודעות טקסט
     if (message.type !== "text") {
       console.log(`⚠️ סוג הודעה לא נתמך: ${message.type}`);
@@ -447,7 +511,8 @@ app.post("/webhook", async (req, res) => {
     }
 
     const from = message.from; // מספר הטלפון של השולח
-    const text = message.text.body;
+    const text = String(message.text?.body || "").trim();
+    if (!text) return;
     const name = value?.contacts?.[0]?.profile?.name || "";
 
     console.log(`\n📩 הודעה נכנסת`);
@@ -468,15 +533,27 @@ app.post("/webhook", async (req, res) => {
     await markLeadActiveByPhone(from);
 
     const allMessages = await getMessages(from);
+
+    if (!shouldReplyToInbound(allMessages, text)) {
+      console.log(`   מדלג — אין הודעת לקוח חדשה לענות עליה`);
+      return;
+    }
+
     const isProactive = await isConversationProactive(from);
     let reply;
     let leadStatus;
 
     if (isProactive) {
-      const result = getProactiveReply(allMessages);
-      reply = result.reply;
-      leadStatus = result.leadStatus;
-      console.log(`   שיחה יזומה — שלב אוטומטי`);
+      console.log(
+        `   שיחה יזומה — שולח ${allMessages.length} הודעות ל-Gemini`
+      );
+      reply = await getProactiveAIReply(from, text, allMessages);
+      reply = sanitizeProactiveReply(reply, allMessages, text);
+      if (!reply) {
+        console.log(`   מדלג — תשובת מעקב אסורה (לקוחה לא ענתה / שאלה חוזרת)`);
+        return;
+      }
+      leadStatus = detectLeadStatus(allMessages, text);
     } else {
       const priorMessages = allMessages.slice(0, -1);
       const isFirstMessage = priorMessages.length === 0;
@@ -507,11 +584,9 @@ app.post("/webhook", async (req, res) => {
       console.log(`   סטטוס ליד עודכן: ${leadStatus}`);
     }
 
-    if (isProactive) {
-      const delayMs = getProactiveReplyDelayMs();
-      console.log(`   ממתין ${Math.round(delayMs / 1000)}s לפני תשובה (שיחה יזומה)`);
-      await sleep(delayMs);
-    }
+    const delayMs = getHumanReplyDelayMs(text, reply);
+    console.log(`   ממתין ${(delayMs / 1000).toFixed(1)}s לפני שליחה`);
+    await sleep(delayMs);
 
     console.log(`   תשובה: ${reply}`);
     await saveMessage(from, "bot", reply);
@@ -580,6 +655,11 @@ async function sendOpening(phone, name) {
     console.log(`↻ דילגנו על הודעת פתיחה כפולה ל-${normalized}`);
     return { skipped: true, phone: normalized };
   }
+  const existingMsgs = await getMessages(normalized);
+  if (existingMsgs.length > 0) {
+    console.log(`↻ דילגנו על פתיחה — כבר יש שיחה עם ${normalized}`);
+    return { skipped: true, phone: normalized, reason: "has_messages" };
+  }
   const opening = getOpeningMessage(name || "");
   await upsertConversation(normalized, name || "");
   await markConversationProactive(normalized);
@@ -643,8 +723,18 @@ async function pollNewLeads() {
     if (!fresh.length) return;
 
     for (const lead of fresh) {
+      if (AUTO_OPENING_SKIP_SOURCES.has(lead.source)) {
+        continue;
+      }
+      if (lead.status && lead.status !== "no_contact") {
+        continue;
+      }
       try {
-        await sendOpening(lead.phone, lead.message_name || lead.name || "");
+        const result = await sendOpening(
+          lead.phone,
+          lead.message_name || lead.name || ""
+        );
+        if (result.skipped) continue;
         console.log(
           `📨 הודעת פתיחה נשלחה ל-${lead.name || "ליד חדש"} (${lead.phone})`
         );
@@ -664,6 +754,17 @@ async function pollNewLeads() {
 
 setInterval(pollNewLeads, LEADS_POLL_MS);
 initLeadsWatcher();
+
+startHourlyNoContactScheduler({
+  normalizePhone,
+  canSendFirstMessageToLead,
+  upsertConversation,
+  markConversationProactive,
+  saveMessage,
+  getFirstLeadTemplateOptions,
+  sendOpening,
+  conversations,
+});
 
 // ============================================================
 // STATUS CHECK

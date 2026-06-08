@@ -851,6 +851,10 @@
           <input type="checkbox" id="leadsSendOpening" />
           שלח הודעת פתיחה
         </label>
+        <label class="leads-import-label" title="שעה אחת בין 10:00–16:00, הודעה אחת לליד בסטטוס לא נוצר קשר">
+          <input type="checkbox" id="hourlyNoContactToggle" />
+          שליחה שעתית ללא קשר (10–16)
+        </label>
         <input type="file" id="leadsImportInput" accept=".xlsx,.xls" />
         <button type="button" id="leadsImportBtn">ייבוא Excel</button>
         <span class="import-status" id="importStatus"></span>
@@ -903,6 +907,7 @@
     let leadNameUpdateInFlight = new Set();
     let leadDeleteInFlight = new Set();
     let leadSendInFlight = new Set();
+    let hourlyNoContactUpdateInFlight = false;
 
     const LEAD_ICON_EDIT =
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 1 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>';
@@ -1266,7 +1271,10 @@
       document
         .getElementById("viewLeads")
         .classList.toggle("active", tab === "leads");
-      if (tab === "leads") loadLeads();
+      if (tab === "leads") {
+        loadLeads();
+        loadHourlyNoContactSetting();
+      }
     }
 
     document
@@ -1279,6 +1287,36 @@
     // ===== LEADS =====
     let importInFlight = false;
     let addLeadInFlight = false;
+
+    async function loadHourlyNoContactSetting() {
+      const toggle = document.getElementById("hourlyNoContactToggle");
+      try {
+        const data = await api("GET", "/api/settings/hourly-no-contact");
+        toggle.checked = Boolean(data?.enabled);
+      } catch (e) {
+        showError(e.message || String(e));
+      }
+    }
+
+    document.getElementById("hourlyNoContactToggle").addEventListener("change", async (e) => {
+      if (hourlyNoContactUpdateInFlight) return;
+      const toggle = e.target;
+      const enabled = toggle.checked;
+      const prev = !enabled;
+
+      hourlyNoContactUpdateInFlight = true;
+      toggle.disabled = true;
+
+      try {
+        await api("PATCH", "/api/settings/hourly-no-contact", { enabled });
+      } catch (err) {
+        toggle.checked = prev;
+        showError(err.message || String(err));
+      } finally {
+        hourlyNoContactUpdateInFlight = false;
+        toggle.disabled = false;
+      }
+    });
 
     function openAddLeadModal() {
       const modal = document.getElementById("addLeadModal");
@@ -1677,6 +1715,7 @@
     }
 
     loadConversations();
+    loadHourlyNoContactSetting();
     setInterval(loadConversations, CONV_POLL_MS);
 
     setInterval(async () => {

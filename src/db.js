@@ -496,7 +496,37 @@ async function bulkInsertLeads(leads) {
   }
 }
 
+/**
+ * לידים בסטטוס מסוים — הישן ביותר ראשון (לתור שליחה שעתית).
+ */
+async function getLeadsByStatus(status) {
+  if (!LEAD_STATUSES.has(status)) {
+    throw new Error("סטטוס לא תקין");
+  }
+  try {
+    const db = requireClient();
+    let { data, error } = await db
+      .from("leads")
+      .select(LEADS_SELECT_FULL)
+      .eq("status", status)
+      .order("created_at", { ascending: true });
+
+    if (error && isMissingMessageNameColumn(error)) {
+      ({ data, error } = await db
+        .from("leads")
+        .select(LEADS_SELECT_BASIC)
+        .eq("status", status)
+        .order("created_at", { ascending: true }));
+    }
+    if (error) throw error;
+    return (data ?? []).map(withMessageNameFallback);
+  } catch (err) {
+    throw wrapDbError(err);
+  }
+}
+
 module.exports = {
+  requireClient,
   upsertConversation,
   getConversationStatus,
   saveMessage,
@@ -518,6 +548,7 @@ module.exports = {
   updateLead,
   updateLeadStatus,
   backfillMessageNames,
+  getLeadsByStatus,
   checkConnection,
   wrapDbError,
   LEAD_STATUSES,

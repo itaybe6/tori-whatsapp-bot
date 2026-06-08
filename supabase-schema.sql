@@ -67,3 +67,14 @@ create policy "Authenticated can read leads"
 
 -- אינדקס
 create index if not exists leads_created_at_idx on public.leads (created_at desc);
+
+-- הגדרות בוט (מתג שליחה שעתית וכו')
+create table if not exists public.app_settings (
+  key text primary key,
+  value jsonb not null default 'null'::jsonb,
+  updated_at timestamptz not null default now()
+);
+
+insert into public.app_settings (key, value)
+values ('hourly_no_contact_enabled', 'false'::jsonb)
+on conflict (key) do nothing;

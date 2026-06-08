@@ -3,13 +3,6 @@ const PITCH_MESSAGE =
 
 const PITCH_MARKER = "זה יכול לעניין אותך";
 
-/** השהייה קצרה לפני תשובה — מרגיש יותר אנושי (2–4.5 שניות) */
-function getProactiveReplyDelayMs() {
-  const min = Number(process.env.PROACTIVE_REPLY_DELAY_MIN_MS) || 2000;
-  const max = Number(process.env.PROACTIVE_REPLY_DELAY_MAX_MS) || 4500;
-  return min + Math.floor(Math.random() * Math.max(0, max - min));
-}
-
 function normalize(text) {
   return String(text || "")
     .trim()
@@ -19,11 +12,15 @@ function normalize(text) {
 
 function isClearlyNegative(text) {
   const t = normalize(text);
-  return (
+  if (
     /^(לא|לאו|לא לא|no|nope)\b/.test(t) ||
-    /לא מעוניין|לא רלוונטי|לא תודה|לא כרגע|בלי תודה|לא בשבילי|לא רוצה/i.test(
-      t
-    )
+    /\b(ממש לא|בכלל לא|לא בכלל|לא ממש|אף פעם לא)\b/.test(t) ||
+    /^ממש\s+לא/.test(t)
+  ) {
+    return true;
+  }
+  return /לא מעוניין|לא רלוונטי|לא תודה|לא כרגע|בלי תודה|לא בשבילי|לא רוצה|לא נכון|זה לא נכון/i.test(
+    t
   );
 }
 
@@ -31,7 +28,7 @@ function isClearlyPositive(text) {
   const t = normalize(text);
   if (isClearlyNegative(t)) return false;
   return (
-    /^(כן|כנ|נכון|בדיוק|כמובן|בטח|ברור|ממש|בהחלט|yes|yep|יאללה|אשכרה|מעולה|סבבה|אשכרה)/i.test(
+    /^(כן|כנ|נכון|בדיוק|כמובן|בטח|ברור|בהחלט|yes|yep|יאללה|מעולה|סבבה|אשכרה)\b/i.test(
       t
     ) || /\b(כן|נכון|מעניין|מעוניין)\b/i.test(t)
   );
@@ -39,11 +36,9 @@ function isClearlyPositive(text) {
 
 function isNailTechConfirmation(text) {
   const t = normalize(text);
-  if (isClearlyNegative(t) && !/ציפורנ|מניקור|לק|סלון/.test(t)) {
-    return false;
-  }
+  if (isClearlyNegative(t)) return false;
   if (/ציפורנ|מניקור|סלון|לק ג|בונה|בונת|מטפלת|נייל/i.test(t)) {
-    return !/^לא\b/.test(t);
+    return true;
   }
   return isClearlyPositive(t);
 }
@@ -56,52 +51,75 @@ function botAlreadyPitched(messages) {
   );
 }
 
+function botAskedNailTechQuestion(messages) {
+  return messages.some(
+    (m) =>
+      (m.role === "bot" || m.role === "human_agent") &&
+      /בונת ציפורניים|בונה ציפורניים/i.test(String(m.content || ""))
+  );
+}
+
+/** חוסם הודעות מעקב / שאלה חוזרת על בונת ציפורניים */
+function isNailTechReAsk(reply, messages) {
+  if (!botAskedNailTechQuestion(messages)) return false;
+  const t = normalize(reply);
+  return (
+    /בונת ציפורניים|בונה ציפורניים/i.test(t) &&
+    /לוודא|זה נכון|כן או לא|רק ל/i.test(t)
+  );
+}
+
 /**
- * מחזיר תשובה לשיחה יזומה + עדכון סטטוס ליד (אופציונלי).
+ * מונע שליחת הודעות מעקב אסורות. מחזיר null = לא לשלוח כלום.
  */
-function getProactiveReply(messages) {
-  const userMsgs = messages.filter((m) => m.role === "user");
-  const lastUser = userMsgs[userMsgs.length - 1]?.content || "";
-  const pitched = botAlreadyPitched(messages);
+function sanitizeProactiveReply(reply, messages, lastUser) {
+  if (!isNailTechReAsk(reply, messages)) return reply;
 
-  if (!pitched) {
-    if (isNailTechConfirmation(lastUser)) {
-      return {
-        reply: PITCH_MESSAGE,
-        leadStatus: "active_conversation",
-      };
-    }
-    if (isClearlyNegative(lastUser)) {
-      return {
-        reply: "הבנתי, תודה על התשובה! יום טוב 🙂",
-        leadStatus: "not_relevant",
-      };
-    }
-    return {
-      reply: "רק לוודא — את בונה ציפורניים? כן או לא?",
-    };
-  }
-
-  if (isClearlyPositive(lastUser)) {
-    return {
-      reply: "מעולה! נציג יחזור אליך בהקדם עם כל הפרטים 🙏",
-      leadStatus: "relevant",
-    };
-  }
   if (isClearlyNegative(lastUser)) {
-    return {
-      reply: "בסדר גמור, תודה על הזמן! יום טוב 🙂",
-      leadStatus: "not_relevant",
-    };
+    return "הבנתי, בהצלחה ותודה! יום טוב 🙂";
+  }
+  if (!botAlreadyPitched(messages) && isNailTechConfirmation(lastUser)) {
+    return PITCH_MESSAGE;
+  }
+  return null;
+}
+
+/** הבוט עונה רק אם ההודעה האחרונה בשיחה היא מהלקוחה */
+function shouldReplyToInbound(allMessages, incomingText) {
+  const thread = allMessages.filter((m) =>
+    ["user", "bot", "human_agent"].includes(m.role)
+  );
+  const last = thread[thread.length - 1];
+  if (!last || last.role !== "user") return false;
+  return String(last.content || "").trim() === String(incomingText || "").trim();
+}
+
+/**
+ * קובע עדכון סטטוס ליד לפי תשובת הלקוחה.
+ */
+function detectLeadStatus(messages, lastUser) {
+  const pitched = botAlreadyPitched(messages);
+  const askedNailTech = botAskedNailTechQuestion(messages);
+
+  if (!pitched && askedNailTech) {
+    if (isClearlyNegative(lastUser)) return "not_relevant";
+    if (isNailTechConfirmation(lastUser)) return "active_conversation";
+    return null;
   }
 
-  return {
-    reply: "זה יכול לעניין אותך? כן או לא?",
-  };
+  if (pitched) {
+    if (isClearlyPositive(lastUser)) return "relevant";
+    if (isClearlyNegative(lastUser)) return "not_relevant";
+  }
+
+  return null;
 }
 
 module.exports = {
-  getProactiveReply,
-  getProactiveReplyDelayMs,
+  detectLeadStatus,
+  sanitizeProactiveReply,
+  shouldReplyToInbound,
   PITCH_MESSAGE,
+  isClearlyNegative,
+  isClearlyPositive,
 };
