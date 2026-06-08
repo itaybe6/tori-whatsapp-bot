@@ -15,6 +15,7 @@ const {
   detectLeadStatus,
   sanitizeProactiveReply,
   shouldReplyToInbound,
+  isNoAnswerSignal,
 } = require("./src/proactiveFlow");
 const { getHumanReplyDelayMs } = require("./src/humanDelay");
 const { getAppSetting, setAppSetting } = require("./src/appSettings");
@@ -522,10 +523,14 @@ app.post("/webhook", async (req, res) => {
     await upsertConversation(from, name);
 
     const convStatus = await getConversationStatus(from);
-    if (convStatus === "human") {
+    if (convStatus === "human" || convStatus === "needs_human") {
       await saveMessage(from, "user", text);
       await markLeadActiveByPhone(from);
-      console.log(`   מצב נציג אנושי — הבוט לא עונה`);
+      console.log(
+        convStatus === "needs_human"
+          ? `   ממתין לנציג (הבוט לא ידע לתת מענה) — הבוט לא עונה`
+          : `   מצב נציג אנושי — הבוט לא עונה`
+      );
       return;
     }
 
@@ -577,6 +582,14 @@ app.post("/webhook", async (req, res) => {
       } else {
         reply = await getReply(from, text);
       }
+    }
+
+    if (isNoAnswerSignal(reply)) {
+      await setConversationStatus(from, "needs_human");
+      console.log(
+        `   🚨 הבוט לא ידע לתת מענה — סטטוס השיחה הועבר ל-needs_human (ממתין לנציג)`
+      );
+      return;
     }
 
     if (leadStatus) {

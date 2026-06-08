@@ -3,6 +3,14 @@ const PITCH_MESSAGE =
 
 const PITCH_MARKER = "זה יכול לעניין אותך";
 
+/** סימן שה-AI מחזיר כשאין לו תשובה בבסיס הידע (אסור להמציא). */
+const NO_ANSWER_SIGNAL = "__NO_ANSWER__";
+
+/** מזהה אם תשובת ה-AI היא "אין לי תשובה" — אז לא שולחים כלום ומסמנים לטיפול נציג. */
+function isNoAnswerSignal(reply) {
+  return /__\s*NO[_\s]?ANSWER\s*__/i.test(String(reply || ""));
+}
+
 function normalize(text) {
   return String(text || "")
     .trim()
@@ -80,6 +88,9 @@ const INTEREST_NUDGE =
 function sanitizeProactiveReply(reply, messages, lastUser) {
   const clean = String(reply || "").trim();
 
+  // סימן "אין לי תשובה" — מעבירים אותו כמו שהוא; השרת יזהה ויסמן לטיפול נציג.
+  if (isNoAnswerSignal(clean)) return clean;
+
   // תשובה ריקה מה-AI — אל תשתיקי את הבוט, החזירי תשובה הולמת לפי ההקשר.
   if (!clean) {
     if (isClearlyNegative(lastUser)) return NEGATIVE_GOODBYE;
@@ -136,7 +147,9 @@ module.exports = {
   detectLeadStatus,
   sanitizeProactiveReply,
   shouldReplyToInbound,
+  isNoAnswerSignal,
   PITCH_MESSAGE,
+  NO_ANSWER_SIGNAL,
   isClearlyNegative,
   isClearlyPositive,
 };

@@ -562,6 +562,7 @@
     }
     .badge.bot { background: #dbeafe; color: #1d4ed8; }
     .badge.human { background: #f3e8ff; color: #7e22ce; }
+    .badge.needs_human { background: #fee2e2; color: #b91c1c; }
     .badge.closed { background: #dcfce7; color: #15803d; }
     .badge.proactive { background: #fef3c7; color: #b45309; }
     .conv-item .preview.user-reply {
@@ -954,6 +955,7 @@
       const map = {
         bot: { cls: "bot", label: "🤖 Bot" },
         human: { cls: "human", label: "👤 Human" },
+        needs_human: { cls: "needs_human", label: "🚨 הבוט לא ידע לענות" },
         closed: { cls: "closed", label: "✅ Closed" },
       };
       const x = map[s] || map.bot;
@@ -1113,17 +1115,22 @@
       const composer = document.getElementById("composer");
       const st = status || "bot";
 
+      const humanControlled = st === "human" || st === "needs_human";
+
       let html = "";
+      if (st === "needs_human") {
+        html += `<span class="badge needs_human" style="margin-inline-end:8px">🚨 הבוט לא ידע לענות — ענה ידנית</span>`;
+      }
       if (st === "bot") {
         html += `<button type="button" id="btnHandoff">Handoff — קח שליטה</button>`;
       }
-      if (st === "human") {
+      if (humanControlled) {
         html += `<button type="button" class="secondary" id="btnHandback">החזר לבוט</button>`;
       }
       html += `<button type="button" class="danger" id="btnDelete">מחק שיחה</button>`;
       tb.innerHTML = html;
 
-      if (st === "human") {
+      if (humanControlled) {
         composer.classList.add("visible");
       } else {
         composer.classList.remove("visible");
