@@ -114,6 +114,58 @@ function isDuplicateAgentSend(phone, message) {
   return false;
 }
 
+// ============================================================
+// התראות לנציגים — כשהבוט צריך שיתערבו (לא ידע לענות / לקוחה מעוניינת)
+// ============================================================
+const ADMIN_ALERT_NUMBERS = (
+  process.env.ADMIN_ALERT_NUMBERS || "0502307500,0527488779"
+)
+  .split(",")
+  .map((n) => normalizePhone(n.trim()))
+  .filter(Boolean);
+
+const ADMIN_ALERT_MESSAGE = "הבוט צריך שתתערבו - אנא כנסו למערכת ההודעות";
+const ADMIN_ALERT_COOLDOWN_MS = 6 * 60 * 60 * 1000;
+const recentAdminAlerts = new Map();
+
+function shouldSendAdminAlert(key) {
+  const now = Date.now();
+  for (const [k, t] of recentAdminAlerts.entries()) {
+    if (now - t > ADMIN_ALERT_COOLDOWN_MS) recentAdminAlerts.delete(k);
+  }
+  if (recentAdminAlerts.has(key)) return false;
+  recentAdminAlerts.set(key, now);
+  return true;
+}
+
+/**
+ * שולח התראה לנציגים. reason: "needs_human" | "interested".
+ * dedup לפי לקוחה+סיבה כדי לא להציף. נכשל בשקט — לא משבש את השיחה.
+ */
+async function notifyAdmins(reason, customerPhone, customerName) {
+  if (!ADMIN_ALERT_NUMBERS.length) return;
+  if (!shouldSendAdminAlert(`${customerPhone}:${reason}`)) return;
+
+  const who = customerName
+    ? `${customerName} (${customerPhone})`
+    : customerPhone;
+  const reasonText =
+    reason === "needs_human"
+      ? "הבוט לא ידע לתת מענה"
+      : "הלקוחה הביעה עניין";
+  const text = `🔔 ${ADMIN_ALERT_MESSAGE}\n${reasonText}\nלקוחה: ${who}`;
+
+  for (const admin of ADMIN_ALERT_NUMBERS) {
+    if (admin === customerPhone) continue;
+    try {
+      await sendMessage(admin, text);
+    } catch (err) {
+      console.error(`❌ התראת נציג ל-${admin} נכשלה:`, err.message);
+    }
+  }
+  console.log(`📣 נשלחה התראת נציג (${reason}) עבור ${customerPhone}`);
+}
+
 // CORS — דשבורד על פורט 3001 קורא ל-API על פורט אחר
 app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -589,12 +641,18 @@ app.post("/webhook", async (req, res) => {
       console.log(
         `   🚨 הבוט לא ידע לתת מענה — סטטוס השיחה הועבר ל-needs_human (ממתין לנציג)`
       );
+      await notifyAdmins("needs_human", from, name);
       return;
     }
 
     if (leadStatus) {
       await markLeadStatusByPhone(from, leadStatus);
       console.log(`   סטטוס ליד עודכן: ${leadStatus}`);
+    }
+
+    // הלקוחה מעוניינת — הבוט מציע שיחה חוזרת ("נציג יחזור אלייך…") → התראה לנציגים
+    if (leadStatus === "relevant" || /נציג\s+יחזור/.test(reply || "")) {
+      await notifyAdmins("interested", from, name);
     }
 
     const delayMs = getHumanReplyDelayMs(text, reply);
