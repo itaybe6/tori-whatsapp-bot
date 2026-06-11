@@ -10,6 +10,7 @@
     "dev": "nodemon server.js",
     "tunnel": "node scripts/tunnel.js",
     "dashboard": "node dashboard-server.js",
+    "build:dashboard": "node scripts/build-dashboard.js",
     "import-excel": "node scripts/import-excel.js",
     "check-supabase": "node scripts/check-supabase.js",
     "setup-app-settings": "node scripts/setup-app-settings.js",

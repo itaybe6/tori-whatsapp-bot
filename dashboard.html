@@ -110,6 +110,29 @@
       font-size: 0.8rem;
       color: var(--muted);
     }
+    .leads-segments {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      margin-inline-start: 0.75rem;
+    }
+    .leads-segment-btn {
+      font: inherit;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 0.38rem 0.95rem;
+      background: #ffffff;
+      color: var(--muted);
+      font-size: 0.82rem;
+      font-weight: 600;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .leads-segment-btn.active {
+      background: rgba(37, 99, 235, 0.1);
+      color: var(--accent-strong);
+      border-color: rgba(37, 99, 235, 0.28);
+    }
     .leads-toolbar-actions {
       margin-inline-start: auto;
       display: flex;
@@ -844,9 +867,13 @@
 
   <section class="view leads-view" id="viewLeads">
     <div class="leads-toolbar">
-      <h2>לידים</h2>
+      <h2 id="leadsSectionTitle">לידים יוצאים</h2>
       <span class="leads-count" id="leadsCount">—</span>
-      <div class="leads-toolbar-actions">
+      <div class="leads-segments">
+        <button type="button" class="leads-segment-btn active" data-leads-segment="outbound" id="leadsSegmentOutbound">פניות יוצאות</button>
+        <button type="button" class="leads-segment-btn" data-leads-segment="inbound" id="leadsSegmentInbound">פניות נכנסות</button>
+      </div>
+      <div class="leads-toolbar-actions" id="leadsOutboundActions">
         <button type="button" class="secondary" id="leadsAddBtn">+ הוספת ליד</button>
         <label class="leads-import-label" title="שלח הודעת פתיחה בוואטסאפ לכל ליד חדש">
           <input type="checkbox" id="leadsSendOpening" />
@@ -892,8 +919,9 @@
 
   <div class="err-toast" id="errToast"></div>
 
+  <script src="/config.js"></script>
   <script>
-    const API_BASE = "http://localhost:3000";
+    const API_BASE = window.TORI_API_BASE || "http://localhost:3000";
     const CONV_POLL_MS = 5000;
     const MSG_POLL_MS = 2000;
     const LEADS_POLL_MS = 5000;
@@ -903,6 +931,7 @@
     let agentSendInFlight = false;
     let lastToolbarStatus = null;
     let activeTab = "conversations";
+    let activeLeadsSegment = "outbound";
     let leadsCache = [];
     let leadStatusUpdateInFlight = new Set();
     let leadNameUpdateInFlight = new Set();
@@ -917,10 +946,59 @@
     const LEAD_ICON_SEND =
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>';
 
-    const FIRST_MESSAGE_ALLOWED_SOURCES = new Set(["manual", "excel-import"]);
+    const OUTBOUND_SOURCES = new Set(["manual", "excel-import"]);
+    const FIRST_MESSAGE_ALLOWED_SOURCES = OUTBOUND_SOURCES;
+
+    function isOutboundLead(lead) {
+      return OUTBOUND_SOURCES.has(lead?.source || "");
+    }
+
+    function isInboundLead(lead) {
+      return !isOutboundLead(lead);
+    }
+
+    function leadSourceLabel(source) {
+      const map = {
+        manual: "ידני",
+        "excel-import": "ייבוא Excel",
+        "landing-page": "טופס באתר",
+      };
+      return map[source] || source || "—";
+    }
 
     function canSendFirstMessage(lead) {
       return FIRST_MESSAGE_ALLOWED_SOURCES.has(lead?.source || "");
+    }
+
+    function getFilteredLeads() {
+      return leadsCache.filter((lead) =>
+        activeLeadsSegment === "outbound"
+          ? isOutboundLead(lead)
+          : isInboundLead(lead)
+      );
+    }
+
+    function updateLeadsSegmentUi() {
+      const isOutbound = activeLeadsSegment === "outbound";
+      document
+        .getElementById("leadsSectionTitle")
+        .textContent = isOutbound ? "לידים יוצאים" : "לידים נכנסים";
+      document.getElementById("leadsOutboundActions").style.display = isOutbound
+        ? "flex"
+        : "none";
+      document.querySelectorAll(".leads-segment-btn").forEach((btn) => {
+        btn.classList.toggle(
+          "active",
+          btn.dataset.leadsSegment === activeLeadsSegment
+        );
+      });
+    }
+
+    function switchLeadsSegment(segment) {
+      if (segment !== "outbound" && segment !== "inbound") return;
+      activeLeadsSegment = segment;
+      updateLeadsSegmentUi();
+      renderLeads();
     }
 
     const LEAD_STATUS_OPTIONS = [
@@ -1279,6 +1357,7 @@
         .getElementById("viewLeads")
         .classList.toggle("active", tab === "leads");
       if (tab === "leads") {
+        updateLeadsSegmentUi();
         loadLeads();
         loadHourlyNoContactSetting();
       }
@@ -1290,6 +1369,12 @@
     document
       .getElementById("tabLeads")
       .addEventListener("click", () => switchTab("leads"));
+    document
+      .getElementById("leadsSegmentOutbound")
+      .addEventListener("click", () => switchLeadsSegment("outbound"));
+    document
+      .getElementById("leadsSegmentInbound")
+      .addEventListener("click", () => switchLeadsSegment("inbound"));
 
     // ===== LEADS =====
     let importInFlight = false;
@@ -1632,18 +1717,28 @@
     function renderLeads() {
       const wrap = document.getElementById("leadsTableWrap");
       const countEl = document.getElementById("leadsCount");
-      countEl.textContent = `${leadsCache.length} לידים`;
+      const filteredLeads = getFilteredLeads();
+      const segmentLabel =
+        activeLeadsSegment === "outbound" ? "יוצאים" : "נכנסים";
+      countEl.textContent = `${filteredLeads.length} לידים ${segmentLabel}`;
 
-      if (!leadsCache.length) {
-        wrap.innerHTML = `<div class="leads-empty">אין לידים עדיין. ייבא קובץ Excel או המתן ללידים חדשים מ-Supabase.</div>`;
+      if (!filteredLeads.length) {
+        const emptyMsg =
+          activeLeadsSegment === "outbound"
+            ? "אין לידים יוצאים עדיין. הוסף ליד ידנית או ייבא קובץ Excel."
+            : "אין לידים נכנסים עדיין. לידים מטופס האתר יופיעו כאן אוטומטית.";
+        wrap.innerHTML = `<div class="leads-empty">${emptyMsg}</div>`;
         return;
       }
 
-      const rows = leadsCache
+      const showSourceColumn = activeLeadsSegment === "inbound";
+      const showSendColumn = activeLeadsSegment === "outbound";
+
+      const rows = filteredLeads
         .map((l) => {
           const name = l.name || "";
           const business = l.business || "";
-          const source = l.source || "—";
+          const source = leadSourceLabel(l.source);
           const status = l.status || "no_contact";
           const messageName = (l.message_name || "").trim();
           const sendBtn = canSendFirstMessage(l)
@@ -1657,9 +1752,7 @@
             : `<span class="lead-send-disabled" title="שליחה זמינה רק ללידים ידניים או מ-Excel">—</span>`;
           return `
             <tr class="row-${status}">
-              <td class="lead-send-cell">
-                ${sendBtn}
-              </td>
+              ${showSendColumn ? `<td class="lead-send-cell">${sendBtn}</td>` : ""}
               <td>
                 <div class="lead-name-cell">
                   <span class="lead-avatar" aria-hidden="true">${escapeHtml(leadInitial(name))}</span>
@@ -1678,7 +1771,7 @@
               </td>
               <td><span class="lead-tag">${escapeHtml(l.business_type || "—")}</span></td>
               <td class="phone">${escapeHtml(l.phone || "")}</td>
-              <td><span class="lead-source">${escapeHtml(source)}</span></td>
+              ${showSourceColumn ? `<td><span class="lead-source">${escapeHtml(source)}</span></td>` : ""}
               <td><div class="lead-status-wrap">${leadStatusSelectHtml(l)}</div></td>
               <td><span class="lead-date">${formatTime(l.created_at)}</span></td>
               <td class="lead-delete-cell">
@@ -1699,13 +1792,13 @@
           <table class="leads-table">
             <thead>
               <tr>
-                <th class="lead-send-cell" title="שליחת הודעה ראשונה">שליחה</th>
+                ${showSendColumn ? '<th class="lead-send-cell" title="שליחת הודעה ראשונה">שליחה</th>' : ""}
                 <th>שם</th>
                 <th>שם העסק</th>
                 <th>שם לשליחת הודעה</th>
                 <th>תחום</th>
                 <th>טלפון</th>
-                <th>מקור</th>
+                ${showSourceColumn ? "<th>מקור</th>" : ""}
                 <th>סטטוס</th>
                 <th>נכנס בתאריך</th>
                 <th class="lead-delete-cell" aria-label="מחיקה"></th>

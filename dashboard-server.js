@@ -6,6 +6,13 @@ const app = express();
 const PORT = process.env.DASHBOARD_PORT || 3001;
 const root = __dirname;
 
+app.get("/config.js", (_req, res) => {
+  const apiBase = process.env.TORI_API_BASE || "http://localhost:3000";
+  res
+    .type("application/javascript")
+    .send(`window.TORI_API_BASE = ${JSON.stringify(apiBase)};\n`);
+});
+
 app.get(["/", "/dashboard.html"], (req, res) => {
   res.sendFile(path.join(root, "dashboard.html"));
 });
