@@ -827,13 +827,99 @@
       justify-content: flex-start;
       margin-top: 1rem;
     }
+    .auth-gate {
+      position: fixed;
+      inset: 0;
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      background:
+        radial-gradient(circle at top right, rgba(59, 130, 246, 0.22), transparent 34rem),
+        radial-gradient(circle at bottom left, rgba(14, 165, 233, 0.14), transparent 28rem),
+        var(--bg);
+    }
+    .auth-gate.hidden { display: none; }
+    .auth-card {
+      width: min(100%, 380px);
+      background: var(--panel-strong);
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      padding: 2rem 1.75rem;
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+      gap: 0.85rem;
+    }
+    .auth-card h1 {
+      font-size: 1.5rem;
+      color: var(--accent-strong);
+      letter-spacing: -0.03em;
+    }
+    .auth-card p {
+      color: var(--muted);
+      font-size: 0.92rem;
+      margin-bottom: 0.35rem;
+    }
+    .auth-card input {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 0.7rem 0.85rem;
+      font: inherit;
+      font-size: 0.92rem;
+      outline: none;
+    }
+    .auth-card input:focus {
+      border-color: rgba(37, 99, 235, 0.45);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+    }
+    .auth-card button[type="submit"] {
+      margin-top: 0.35rem;
+      border: none;
+      border-radius: 12px;
+      padding: 0.75rem 1rem;
+      font: inherit;
+      font-weight: 700;
+      color: #fff;
+      cursor: pointer;
+      background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+      box-shadow: 0 8px 20px rgba(37, 99, 235, 0.22);
+    }
+    .auth-card button[type="submit"]:disabled {
+      opacity: 0.65;
+      cursor: wait;
+    }
+    .auth-error {
+      min-height: 1.2rem;
+      color: #dc2626;
+      font-size: 0.85rem;
+    }
+    .topbar-spacer { flex: 1; }
+    #logoutBtn { margin-inline-start: 0; }
+    #appShell { display: none; flex-direction: column; height: 100vh; }
+    #appShell.visible { display: flex; }
   </style>
 </head>
 <body>
+  <div class="auth-gate" id="authGate">
+    <form class="auth-card" id="loginForm">
+      <h1>Tori</h1>
+      <p>דשבורד ניהול — התחברות למורשים בלבד</p>
+      <input id="loginEmail" type="email" required autocomplete="email" placeholder="אימייל" dir="ltr" />
+      <input id="loginPassword" type="password" required autocomplete="current-password" placeholder="סיסמה" dir="ltr" />
+      <button type="submit" id="loginSubmitBtn">כניסה</button>
+      <p class="auth-error" id="loginError" aria-live="polite"></p>
+    </form>
+  </div>
+
+  <div id="appShell">
   <div class="topbar">
     <span class="brand">Tori</span>
     <button type="button" class="tab-btn active" data-tab="conversations" id="tabConversations">שיחות</button>
     <button type="button" class="tab-btn" data-tab="leads" id="tabLeads">לידים</button>
+    <span class="topbar-spacer"></span>
+    <button type="button" class="tab-btn" id="logoutBtn">יציאה</button>
   </div>
 
   <section class="view active" id="viewConversations">
@@ -918,7 +1004,9 @@
   </div>
 
   <div class="err-toast" id="errToast"></div>
+  </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="/config.js"></script>
   <script>
     const API_BASE = window.TORI_API_BASE || "http://localhost:3000";
@@ -938,6 +1026,9 @@
     let leadDeleteInFlight = new Set();
     let leadSendInFlight = new Set();
     let hourlyNoContactUpdateInFlight = false;
+    let supabaseClient = null;
+    let authSession = null;
+    let dashboardBootstrapped = false;
 
     const LEAD_ICON_EDIT =
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 1 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>';
@@ -1058,10 +1149,41 @@
       setTimeout(() => el.classList.remove("show"), 4000);
     }
 
+    function authHeaders(extra = {}) {
+      const headers = { ...extra };
+      if (authSession?.access_token) {
+        headers.Authorization = `Bearer ${authSession.access_token}`;
+      }
+      return headers;
+    }
+
+    function showLoginScreen(message = "") {
+      document.getElementById("authGate").classList.remove("hidden");
+      document.getElementById("appShell").classList.remove("visible");
+      const errEl = document.getElementById("loginError");
+      if (errEl) errEl.textContent = message;
+    }
+
+    function showDashboardScreen() {
+      document.getElementById("authGate").classList.add("hidden");
+      document.getElementById("appShell").classList.add("visible");
+      document.getElementById("loginError").textContent = "";
+      if (!dashboardBootstrapped) {
+        dashboardBootstrapped = true;
+        bootstrapDashboard();
+      }
+    }
+
+    async function handleUnauthorized() {
+      authSession = null;
+      if (supabaseClient) await supabaseClient.auth.signOut();
+      showLoginScreen("פג תוקף ההתחברות — התחבר שוב");
+    }
+
     async function api(method, path, body) {
       const opts = {
         method,
-        headers: { "Content-Type": "application/json" },
+        headers: authHeaders({ "Content-Type": "application/json" }),
         cache: "no-store",
       };
       if (body != null) opts.body = JSON.stringify(body);
@@ -1073,11 +1195,71 @@
       } catch {
         data = text;
       }
+      if (res.status === 401) {
+        await handleUnauthorized();
+        throw new Error("נדרשת התחברות");
+      }
       if (!res.ok) {
         throw new Error((data && data.error) || res.statusText || "שגיאת רשת");
       }
       return data;
     }
+
+    async function initAuth() {
+      const url = window.SUPABASE_URL;
+      const anonKey = window.SUPABASE_ANON_KEY;
+      if (!url || !anonKey) {
+        showLoginScreen("חסרה הגדרת Supabase בדשבורד");
+        return;
+      }
+
+      supabaseClient = window.supabase.createClient(url, anonKey);
+      const {
+        data: { session },
+      } = await supabaseClient.auth.getSession();
+      authSession = session;
+      if (session) showDashboardScreen();
+      else showLoginScreen();
+
+      supabaseClient.auth.onAuthStateChange((_event, session) => {
+        authSession = session;
+        if (session) showDashboardScreen();
+        else if (dashboardBootstrapped) showLoginScreen();
+      });
+    }
+
+    document.getElementById("loginForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const email = document.getElementById("loginEmail").value.trim();
+      const password = document.getElementById("loginPassword").value;
+      const btn = document.getElementById("loginSubmitBtn");
+      const errEl = document.getElementById("loginError");
+      errEl.textContent = "";
+      btn.disabled = true;
+      btn.textContent = "מתחבר…";
+
+      try {
+        if (!supabaseClient) throw new Error("שירות ההתחברות לא זמין");
+        const { data, error } = await supabaseClient.auth.signInWithPassword({
+          email,
+          password,
+        });
+        if (error) throw error;
+        authSession = data.session;
+        showDashboardScreen();
+      } catch (err) {
+        errEl.textContent = err.message || "התחברות נכשלה";
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "כניסה";
+      }
+    });
+
+    document.getElementById("logoutBtn").addEventListener("click", async () => {
+      if (supabaseClient) await supabaseClient.auth.signOut();
+      authSession = null;
+      showLoginScreen();
+    });
 
     function renderConvList() {
       const list = document.getElementById("convList");
@@ -1486,10 +1668,15 @@
 
         const res = await fetch(API_BASE + "/api/leads/import", {
           method: "POST",
+          headers: authHeaders(),
           body: form,
           cache: "no-store",
         });
         const data = await res.json();
+        if (res.status === 401) {
+          await handleUnauthorized();
+          throw new Error("נדרשת התחברות");
+        }
         if (!res.ok) {
           throw new Error(data.error || res.statusText || "שגיאת ייבוא");
         }
@@ -1814,31 +2001,35 @@
       bindLeadSendButtons();
     }
 
-    loadConversations();
-    loadHourlyNoContactSetting();
-    setInterval(loadConversations, CONV_POLL_MS);
+    function bootstrapDashboard() {
+      loadConversations();
+      loadHourlyNoContactSetting();
+      setInterval(loadConversations, CONV_POLL_MS);
 
-    setInterval(async () => {
-      if (!selectedPhone) return;
-      try {
-        await loadMessagesForSelection();
-        const c = conversationsCache.find((x) => x.phone === selectedPhone);
-        if (c) renderToolbarIfNeeded(c.status);
-      } catch (e) {
-        showError(e.message || String(e));
-      }
-    }, MSG_POLL_MS);
+      setInterval(async () => {
+        if (!selectedPhone) return;
+        try {
+          await loadMessagesForSelection();
+          const c = conversationsCache.find((x) => x.phone === selectedPhone);
+          if (c) renderToolbarIfNeeded(c.status);
+        } catch (e) {
+          showError(e.message || String(e));
+        }
+      }, MSG_POLL_MS);
 
-    setInterval(() => {
-      if (activeTab === "leads") loadLeads();
-    }, LEADS_POLL_MS);
+      setInterval(() => {
+        if (activeTab === "leads") loadLeads();
+      }, LEADS_POLL_MS);
 
-    document.getElementById("agentInput").addEventListener("keydown", (e) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        sendAgentMessage();
-      }
-    });
+      document.getElementById("agentInput").addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
+          sendAgentMessage();
+        }
+      });
+    }
+
+    initAuth();
   </script>
 </body>
 </html>

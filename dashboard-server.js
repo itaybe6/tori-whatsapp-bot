@@ -8,9 +8,16 @@ const root = __dirname;
 
 app.get("/config.js", (_req, res) => {
   const apiBase = process.env.TORI_API_BASE || "http://localhost:3000";
-  res
-    .type("application/javascript")
-    .send(`window.TORI_API_BASE = ${JSON.stringify(apiBase)};\n`);
+  const supabaseUrl = process.env.SUPABASE_URL || "";
+  const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || "";
+  res.type("application/javascript").send(
+    [
+      `window.TORI_API_BASE = ${JSON.stringify(apiBase)};`,
+      `window.SUPABASE_URL = ${JSON.stringify(supabaseUrl)};`,
+      `window.SUPABASE_ANON_KEY = ${JSON.stringify(supabaseAnonKey)};`,
+      "",
+    ].join("\n")
+  );
 });
 
 app.get(["/", "/dashboard.html"], (req, res) => {

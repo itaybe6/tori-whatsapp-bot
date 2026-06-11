@@ -1,5 +1,6 @@
 require("dotenv").config();
 const express = require("express");
+const { createClient } = require("@supabase/supabase-js");
 const multer = require("multer");
 const { sendMessage, sendProactiveMessage } = require("./src/whatsapp");
 const { parseExcelBuffer } = require("./src/excelImport");
@@ -173,11 +174,49 @@ app.use((req, res, next) => {
     "Access-Control-Allow-Methods",
     "GET, POST, PATCH, DELETE, OPTIONS"
   );
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
   if (req.method === "OPTIONS") return res.sendStatus(204);
   next();
 });
 
+let supabaseAuthClient = null;
+function getSupabaseAuthClient() {
+  if (
+    !supabaseAuthClient &&
+    process.env.SUPABASE_URL &&
+    process.env.SUPABASE_SERVICE_KEY
+  ) {
+    supabaseAuthClient = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_KEY,
+      { auth: { persistSession: false, autoRefreshToken: false } }
+    );
+  }
+  return supabaseAuthClient;
+}
+
+async function requireDashboardAuth(req, res, next) {
+  const authHeader = req.headers.authorization || "";
+  if (!authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "נדרשת התחברות" });
+  }
+  const client = getSupabaseAuthClient();
+  if (!client) {
+    return res.status(503).json({ error: "התחברות לא מוגדרת בשרת" });
+  }
+  const token = authHeader.slice(7);
+  const {
+    data: { user },
+    error,
+  } = await client.auth.getUser(token);
+  if (error || !user) {
+    return res.status(401).json({ error: "התחברות לא תקינה או שפג תוקפה" });
+  }
+  req.authUser = user;
+  next();
+}
+
+app.use("/api", requireDashboardAuth);
 app.use("/api", (req, res, next) => {
   res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
   next();
