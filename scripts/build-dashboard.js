@@ -14,9 +14,14 @@ const supabaseUrl = process.env.SUPABASE_URL || "";
 const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || "";
 
 fs.mkdirSync(outDir, { recursive: true });
+fs.mkdirSync(path.join(outDir, "assets"), { recursive: true });
 fs.copyFileSync(
   path.join(root, "dashboard.html"),
   path.join(outDir, "index.html")
+);
+fs.copyFileSync(
+  path.join(root, "assets", "tori logo-06.png"),
+  path.join(outDir, "assets", "tori-logo.png")
 );
 fs.writeFileSync(
   path.join(outDir, "config.js"),

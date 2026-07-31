@@ -14,6 +14,7 @@
     "create-auth-user": "node scripts/create-auth-user.js",
     "import-excel": "node scripts/import-excel.js",
     "check-supabase": "node scripts/check-supabase.js",
+    "setup-supabase": "node scripts/setup-supabase.js",
     "setup-app-settings": "node scripts/setup-app-settings.js",
     "backfill-message-names": "node scripts/backfill-message-names.js",
     "backfill-conversations": "node scripts/backfill-conversations.js"

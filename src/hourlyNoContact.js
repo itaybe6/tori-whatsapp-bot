@@ -54,7 +54,7 @@ function createSendNoContactOutreach(deps) {
         return { skipped: true, reason: "no_message_name" };
       }
 
-      const text = getFirstLeadMessage(messageName);
+      const text = await getFirstLeadMessage(messageName);
       await upsertConversation(phone, messageName);
       await markConversationProactive(phone);
       await sendProactiveMessage(phone, messageName, getFirstLeadTemplateOptions());

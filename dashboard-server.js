@@ -24,6 +24,10 @@ app.get(["/", "/dashboard.html"], (req, res) => {
   res.sendFile(path.join(root, "dashboard.html"));
 });
 
+app.get("/assets/tori-logo.png", (_req, res) => {
+  res.sendFile(path.join(root, "assets", "tori logo-06.png"));
+});
+
 const server = app.listen(PORT, () => {
   console.log(`\n📊 דשבורד ניהול: http://localhost:${PORT}\n`);
 });

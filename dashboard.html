@@ -4,521 +4,360 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Tori — דשבורד ניהול שיחות</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <style>
     :root {
-      --bg: #eef4fb;
-      --panel: rgba(255, 255, 255, 0.92);
-      --panel-strong: #ffffff;
-      --border: rgba(37, 99, 235, 0.14);
-      --text: #0f172a;
-      --muted: #64748b;
-      --accent: #3b82f6;
-      --accent-strong: #2563eb;
-      --user-bubble: linear-gradient(135deg, #2563eb, #4f46e5);
-      --agent-bubble: #ffffff;
-      --success: #22c55e;
-      --shadow: 0 16px 38px rgba(15, 23, 42, 0.10);
+      --bg: #f3f5fa;
+      --surface: #ffffff;
+      --surface-soft: #f8fafd;
+      --border: #e6eaf2;
+      --border-strong: #d8dfeb;
+      --text: #16203a;
+      --muted: #69748c;
+      --faint: #98a2b8;
+      --primary: #4569f0;
+      --primary-strong: #2f4fd8;
+      --primary-soft: #eef2fe;
+      --primary-border: #ccd8fb;
+      --success: #16a34a;
+      --danger: #dc2626;
+      --radius-lg: 18px;
+      --radius-md: 12px;
+      --radius-sm: 9px;
+      --shadow-sm: 0 1px 2px rgba(22, 32, 58, 0.05), 0 1px 4px rgba(22, 32, 58, 0.04);
+      --shadow-md: 0 6px 22px rgba(22, 32, 58, 0.07);
+      --shadow-lg: 0 18px 50px rgba(22, 32, 58, 0.14);
+      --grad-primary: linear-gradient(135deg, #5b7bff 0%, #3b5bdb 100%);
+      --nav-bg: #151c2e;
+      --nav-bg-soft: #1c2438;
+      --nav-border: rgba(255, 255, 255, 0.08);
+      --nav-text: #8b95ad;
+      --nav-text-hover: #e2e8f4;
+      --nav-active-bg: linear-gradient(135deg, rgba(91, 123, 255, 0.28) 0%, rgba(59, 91, 219, 0.14) 100%);
+      --nav-active-border: rgba(120, 150, 255, 0.45);
+      --nav-width: 248px;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
     body {
-      font-family: "Segoe UI", Tahoma, Arial, sans-serif;
-      background:
-        radial-gradient(circle at top right, rgba(59, 130, 246, 0.20), transparent 34rem),
-        radial-gradient(circle at bottom left, rgba(14, 165, 233, 0.13), transparent 28rem),
-        var(--bg);
+      font-family: "Heebo", "Segoe UI", Tahoma, Arial, sans-serif;
+      background: var(--bg);
       color: var(--text);
       height: 100vh;
       overflow: hidden;
       display: flex;
       flex-direction: column;
+      -webkit-font-smoothing: antialiased;
     }
-    .topbar {
-      direction: rtl;
+    ::-webkit-scrollbar { width: 9px; height: 9px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb {
+      background: #c7cedf;
+      border-radius: 99px;
+      border: 2px solid transparent;
+      background-clip: content-box;
+    }
+    ::-webkit-scrollbar-thumb:hover { background-color: #aab4cc; background-clip: content-box; }
+
+    /* ===== App shell + nav sidebar ===== */
+    .brand {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
-      padding: 0.65rem 1rem;
-      background: rgba(255, 255, 255, 0.88);
-      border-bottom: 1px solid var(--border);
-      backdrop-filter: blur(18px);
-      box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
-    }
-    .topbar .brand {
-      font-weight: 700;
+      gap: 0.6rem;
+      font-weight: 800;
+      font-size: 1.15rem;
       letter-spacing: -0.02em;
-      margin-left: 0.5rem;
-      color: var(--accent-strong);
-    }
-    .tab-btn {
-      font: inherit;
-      cursor: pointer;
-      border: 1px solid var(--border);
-      border-radius: 999px;
-      padding: 0.45rem 1.1rem;
-      background: #ffffff;
       color: var(--text);
-      font-size: 0.85rem;
-      font-weight: 600;
-      box-shadow: none;
-      transition: background 0.15s, color 0.15s, border-color 0.15s;
     }
-    .tab-btn.active {
-      background: linear-gradient(135deg, var(--accent), var(--accent-strong));
-      color: #ffffff;
-      border-color: transparent;
-      box-shadow: 0 8px 20px rgba(37, 99, 235, 0.22);
+    .brand-logo {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      background: var(--grad-primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 800;
+      box-shadow: 0 5px 14px rgba(69, 105, 240, 0.35);
+      flex-shrink: 0;
     }
-    .view {
-      flex: 1;
-      min-height: 0;
-      display: none;
-    }
-    .view.active { display: flex; }
-    .layout {
-      display: grid;
-      grid-template-columns: minmax(320px, 380px) 1fr;
-      flex: 1;
-      min-height: 0;
-      direction: rtl;
-      gap: 1px;
-      background: var(--border);
-      width: 100%;
-    }
-    .leads-view {
-      direction: rtl;
-      width: 100%;
-      overflow: hidden;
+    .nav-sidebar {
+      width: var(--nav-width);
+      flex-shrink: 0;
+      display: flex;
       flex-direction: column;
       background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(238, 244, 251, 0.96) 55%),
-        var(--bg);
+        radial-gradient(circle at 30% 0%, rgba(91, 123, 255, 0.22), transparent 55%),
+        radial-gradient(circle at 80% 100%, rgba(124, 58, 237, 0.12), transparent 50%),
+        var(--nav-bg);
+      border-inline-start: 1px solid var(--nav-border);
+      padding: 1.35rem 1rem 1.15rem;
+      z-index: 60;
+      direction: rtl;
+      box-shadow: -10px 0 36px rgba(15, 20, 35, 0.22);
     }
-    .leads-toolbar {
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.35rem 0.4rem 1.25rem;
+      margin-bottom: 0.15rem;
+    }
+    .nav-brand-logo {
+      width: 100%;
+      max-width: 112px;
+      height: auto;
+      display: block;
+      object-fit: contain;
+    }
+    .nav-menu {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      padding: 0.5rem 0.25rem;
+      flex: 1;
+    }
+    .nav-label {
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: rgba(255, 255, 255, 0.35);
+      padding: 0.15rem 0.7rem 0.55rem;
+    }
+    .nav-sidebar .tab-btn {
+      font: inherit;
+      cursor: pointer;
+      border: 1px solid transparent;
+      border-radius: 13px;
+      padding: 0.62rem 0.75rem;
+      background: transparent;
+      color: var(--nav-text);
+      font-size: 0.9rem;
+      font-weight: 600;
       display: flex;
       align-items: center;
       gap: 0.75rem;
-      padding: 1rem 1.35rem;
-      border-bottom: 1px solid var(--border);
-      background: rgba(255, 255, 255, 0.78);
-      backdrop-filter: blur(18px);
-    }
-    .leads-toolbar h2 {
-      font-size: 1.05rem;
-      letter-spacing: -0.02em;
-    }
-    .leads-count {
-      font-size: 0.8rem;
-      color: var(--muted);
-    }
-    .leads-segments {
-      display: flex;
-      align-items: center;
-      gap: 0.45rem;
-      margin-inline-start: 0.75rem;
-    }
-    .leads-segment-btn {
-      font: inherit;
-      cursor: pointer;
-      border: 1px solid var(--border);
-      border-radius: 999px;
-      padding: 0.38rem 0.95rem;
-      background: #ffffff;
-      color: var(--muted);
-      font-size: 0.82rem;
-      font-weight: 600;
-      transition: background 0.15s, color 0.15s, border-color 0.15s;
-    }
-    .leads-segment-btn.active {
-      background: rgba(37, 99, 235, 0.1);
-      color: var(--accent-strong);
-      border-color: rgba(37, 99, 235, 0.28);
-    }
-    .leads-toolbar-actions {
-      margin-inline-start: auto;
-      display: flex;
-      align-items: center;
-      gap: 0.65rem;
-      flex-wrap: wrap;
-    }
-    .leads-import-label {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.4rem;
-      cursor: pointer;
-      font-size: 0.85rem;
-      color: var(--muted);
-    }
-    .leads-import-label input[type="checkbox"] {
-      accent-color: var(--accent);
-    }
-    #leadsImportInput { display: none; }
-    .import-status {
-      font-size: 0.8rem;
-      color: var(--muted);
-      max-width: 280px;
-    }
-    .leads-table-wrap {
-      flex: 1;
-      min-height: 0;
-      overflow: auto;
-      padding: 1.25rem 1.5rem 1.75rem;
-    }
-    .leads-table-card {
-      background: var(--panel-strong);
-      border: 1px solid var(--border);
-      border-radius: 20px;
-      overflow: hidden;
-      box-shadow: var(--shadow);
-    }
-    table.leads-table {
       width: 100%;
-      border-collapse: collapse;
-      font-size: 0.86rem;
-    }
-    table.leads-table th,
-    table.leads-table td {
-      padding: 0.85rem 1rem;
       text-align: right;
-      vertical-align: middle;
-    }
-    table.leads-table thead th {
-      background: linear-gradient(135deg, rgba(37, 99, 235, 0.10), rgba(14, 165, 233, 0.08));
-      font-weight: 700;
-      font-size: 0.74rem;
-      letter-spacing: 0.03em;
-      text-transform: uppercase;
-      color: var(--accent-strong);
-      position: sticky;
-      top: 0;
-      z-index: 2;
-      border-bottom: 1px solid var(--border);
-      white-space: nowrap;
-    }
-    table.leads-table tbody tr {
-      border-bottom: 1px solid rgba(37, 99, 235, 0.08);
-      transition: background 0.18s ease, box-shadow 0.18s ease;
-    }
-    table.leads-table tbody tr.row-no_contact { background: #f8fafc; }
-    table.leads-table tbody tr.row-message_sent { background: #eff6ff; }
-    table.leads-table tbody tr.row-active_conversation { background: #f5f3ff; }
-    table.leads-table tbody tr.row-relevant { background: #ecfdf5; }
-    table.leads-table tbody tr.row-not_relevant { background: #fef2f2; }
-    table.leads-table tbody tr.row-no_contact:hover { background: #f1f5f9; }
-    table.leads-table tbody tr.row-message_sent:hover { background: #dbeafe; }
-    table.leads-table tbody tr.row-active_conversation:hover { background: #ede9fe; }
-    table.leads-table tbody tr.row-relevant:hover { background: #d1fae5; }
-    table.leads-table tbody tr.row-not_relevant:hover { background: #fee2e2; }
-    table.leads-table tbody tr:last-child { border-bottom: none; }
-    .lead-name-cell {
-      display: flex;
-      align-items: center;
-      gap: 0.7rem;
-      min-width: 0;
-    }
-    .lead-avatar {
-      flex-shrink: 0;
-      width: 2.15rem;
-      height: 2.15rem;
-      border-radius: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 0.82rem;
-      font-weight: 700;
-      color: #fff;
-      background: linear-gradient(135deg, #3b82f6, #6366f1);
-      box-shadow: 0 6px 16px rgba(59, 130, 246, 0.28);
-    }
-    .lead-name-text {
-      font-weight: 600;
-      color: var(--text);
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      max-width: 160px;
-    }
-    .lead-business {
-      font-weight: 500;
-      color: var(--text);
-      max-width: 180px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .lead-tag {
-      display: inline-flex;
-      align-items: center;
-      padding: 0.28rem 0.65rem;
-      border-radius: 999px;
-      font-size: 0.74rem;
-      font-weight: 600;
-      background: #f1f5f9;
-      color: #475569;
-      border: 1px solid rgba(100, 116, 139, 0.15);
-      white-space: nowrap;
-    }
-    .lead-source {
-      display: inline-flex;
-      align-items: center;
-      padding: 0.25rem 0.6rem;
-      border-radius: 8px;
-      font-size: 0.72rem;
-      font-weight: 600;
-      background: rgba(37, 99, 235, 0.08);
-      color: var(--accent-strong);
-      white-space: nowrap;
-    }
-    .lead-send-disabled {
-      color: #94a3b8;
-      font-size: 0.85rem;
-      user-select: none;
-    }
-    table.leads-table td.phone {
-      direction: ltr;
-      text-align: right;
-      font-family: "Cascadia Code", "Consolas", monospace;
-      font-size: 0.82rem;
-      color: #334155;
-      font-weight: 500;
-      letter-spacing: 0.02em;
-    }
-    .lead-date {
-      font-size: 0.78rem;
-      color: var(--muted);
-      white-space: nowrap;
-    }
-    .lead-message-name-cell {
-      display: flex;
-      align-items: center;
-      gap: 0.45rem;
-      min-width: 0;
-    }
-    .lead-message-name {
-      display: inline-flex;
-      align-items: center;
-      padding: 0.32rem 0.7rem;
-      border-radius: 999px;
-      font-size: 0.82rem;
-      font-weight: 700;
-      color: #1e40af;
-      background: rgba(255, 255, 255, 0.92);
-      border: 1px solid rgba(37, 99, 235, 0.18);
-      white-space: nowrap;
-    }
-    .lead-message-name.empty {
-      color: var(--muted);
-      font-weight: 500;
-      background: rgba(255, 255, 255, 0.55);
-    }
-    .lead-message-name-input {
-      width: 100%;
-      min-width: 72px;
-      max-width: 120px;
-      border: 1px solid rgba(37, 99, 235, 0.35);
-      border-radius: 10px;
-      padding: 0.35rem 0.55rem;
-      font: inherit;
-      font-size: 0.82rem;
-      font-weight: 600;
-      color: var(--text);
-      background: #fff;
-      outline: none;
-    }
-    .lead-message-name-input:focus {
-      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.14);
-    }
-    .lead-icon-btn {
-      flex-shrink: 0;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 1.85rem;
-      height: 1.85rem;
-      font: inherit;
-      cursor: pointer;
-      border: none;
-      border-radius: 8px;
-      padding: 0;
-      color: #64748b;
-      background: transparent;
       box-shadow: none;
-      transition: background 0.15s, color 0.15s, opacity 0.15s;
+      transition: background 0.18s, color 0.18s, border-color 0.18s, box-shadow 0.18s;
     }
-    .lead-icon-btn svg {
-      width: 1.05rem;
-      height: 1.05rem;
-      display: block;
+    .nav-icon-wrap {
+      width: 38px;
+      height: 38px;
+      border-radius: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      flex-shrink: 0;
+      transition: background 0.18s, border-color 0.18s, box-shadow 0.18s;
     }
-    .lead-icon-btn:hover:not(:disabled) {
-      background: rgba(15, 23, 42, 0.06);
-      color: #334155;
+    .nav-icon-wrap svg {
+      width: 1.1rem;
+      height: 1.1rem;
+      stroke-width: 2;
+    }
+    .nav-item-text { flex: 1; }
+    .nav-sidebar .tab-btn:hover {
+      color: var(--nav-text-hover);
+      background: rgba(255, 255, 255, 0.05);
       transform: none;
       box-shadow: none;
     }
-    .lead-icon-btn:disabled {
-      opacity: 0.45;
-      cursor: wait;
+    .nav-sidebar .tab-btn:hover .nav-icon-wrap {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.12);
     }
-    .lead-edit-btn.save,
-    .lead-edit-btn.cancel {
-      flex-shrink: 0;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: auto;
-      height: auto;
-      padding: 0.28rem 0.55rem;
+    .nav-sidebar .tab-btn.active {
+      background: var(--nav-active-bg);
+      color: #f8fafc;
+      border-color: var(--nav-active-border);
+      box-shadow: 0 6px 20px rgba(59, 91, 219, 0.22);
+      padding-inline-start: 0.75rem;
+    }
+    .nav-sidebar .tab-btn.active .nav-icon-wrap {
+      background: var(--grad-primary);
+      border-color: transparent;
+      box-shadow: 0 6px 16px rgba(69, 105, 240, 0.45);
+      color: #fff;
+    }
+    .nav-footer {
+      padding: 1rem 0.25rem 0.15rem;
+      margin-top: auto;
+      border-top: 1px solid var(--nav-border);
+    }
+    .nav-sidebar .logout-btn {
       font: inherit;
-      font-size: 0.72rem;
-      font-weight: 600;
       cursor: pointer;
-      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      width: 100%;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 13px;
+      padding: 0.65rem 0.75rem;
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--nav-text);
+      font-size: 0.88rem;
+      font-weight: 600;
+      box-shadow: none;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
+    }
+    .nav-sidebar .logout-btn svg {
+      width: 1.05rem;
+      height: 1.05rem;
+      flex-shrink: 0;
+    }
+    .nav-sidebar .logout-btn:hover {
+      color: #fecaca;
+      border-color: rgba(248, 113, 113, 0.35);
+      background: rgba(220, 38, 38, 0.14);
+      transform: none;
       box-shadow: none;
     }
-    .lead-edit-btn.save {
-      color: #15803d;
-      border-color: #bbf7d0;
-      background: #f0fdf4;
+    .app-main {
+      flex: 1;
+      min-width: 0;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
     }
-    .lead-edit-btn.cancel {
-      color: #b91c1c;
-      border-color: #fecaca;
-      background: #fef2f2;
-    }
-    .lead-send-cell {
-      width: 44px;
-      text-align: center;
-      padding-inline: 0.45rem !important;
-    }
-    .lead-delete-cell {
-      width: 44px;
-      text-align: center;
-      padding-inline: 0.45rem !important;
-    }
-    .lead-message-name-cell.editing .lead-message-name,
-    .lead-message-name-cell.editing .lead-icon-btn[data-action="edit"] {
-      display: none;
-    }
-    .lead-message-name-cell:not(.editing) .lead-message-name-input,
-    .lead-message-name-cell:not(.editing) .lead-edit-btn[data-action="save"],
-    .lead-message-name-cell:not(.editing) .lead-edit-btn[data-action="cancel"] {
-      display: none;
-    }
-    .lead-status-wrap {
-      position: relative;
-      display: inline-flex;
-    }
-    .lead-status-select {
-      appearance: none;
-      -webkit-appearance: none;
-      border: 1px solid transparent;
-      border-radius: 999px;
-      padding: 0.42rem 2rem 0.42rem 0.85rem;
-      font: inherit;
-      font-size: 0.76rem;
-      font-weight: 700;
-      cursor: pointer;
-      outline: none;
-      transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
-      background-repeat: no-repeat;
-      background-position: left 0.55rem center;
-      background-size: 0.65rem;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%2364748b'%3E%3Cpath fill-rule='evenodd' d='M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.25a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z'/%3E%3C/svg%3E");
-    }
-    .lead-status-select:hover:not(:disabled) {
-      transform: translateY(-1px);
-      box-shadow: 0 6px 14px rgba(15, 23, 42, 0.10);
-    }
-    .lead-status-select:focus {
-      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.18);
-    }
-    .lead-status-select:disabled {
-      opacity: 0.65;
-      cursor: wait;
-    }
-    .lead-status-select.status-no_contact {
-      background-color: #f8fafc;
-      color: #64748b;
-      border-color: #e2e8f0;
-    }
-    .lead-status-select.status-message_sent {
-      background-color: #dbeafe;
-      color: #1d4ed8;
-      border-color: #bfdbfe;
-    }
-    .lead-status-select.status-active_conversation {
-      background-color: #ede9fe;
-      color: #6d28d9;
-      border-color: #ddd6fe;
-    }
-    .lead-status-select.status-relevant {
-      background-color: #dcfce7;
-      color: #15803d;
-      border-color: #bbf7d0;
-    }
-    .lead-status-select.status-not_relevant {
-      background-color: #fee2e2;
-      color: #b91c1c;
-      border-color: #fecaca;
-    }
-    .leads-empty {
-      padding: 3rem 2rem;
-      text-align: center;
-      color: var(--muted);
-      font-size: 0.95rem;
-      background: var(--panel-strong);
-      border: 1px dashed var(--border);
-      border-radius: 20px;
+
+    /* ===== Views ===== */
+    .view { flex: 1; min-height: 0; display: none; }
+    .view.active { display: flex; }
+
+    /* ===== Conversations layout ===== */
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(330px, 390px) 1fr;
+      flex: 1;
+      min-height: 0;
+      direction: rtl;
+      width: 100%;
     }
     .sidebar {
-      background: var(--panel);
+      background: var(--surface);
+      border-inline-end: 1px solid var(--border);
       display: flex;
       flex-direction: column;
       min-width: 0;
       min-height: 0;
       overflow: hidden;
       direction: rtl;
-      backdrop-filter: blur(18px);
-      box-shadow: -16px 0 40px rgba(15, 23, 42, 0.06);
     }
     .sidebar-header {
-      padding: 1.25rem 1.25rem 1rem;
+      padding: 1.15rem 1.15rem 0.85rem;
       border-bottom: 1px solid var(--border);
-      background: rgba(255, 255, 255, 0.74);
+      display: flex;
+      flex-direction: column;
+      gap: 0.8rem;
+    }
+    .sidebar-header .titles {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 0.5rem;
     }
     .sidebar-header h1 {
-      font-size: 1.15rem;
+      font-size: 1.08rem;
       font-weight: 700;
-      letter-spacing: -0.02em;
+      letter-spacing: -0.01em;
     }
     .sidebar-header .sub {
-      font-size: 0.8rem;
-      color: var(--muted);
-      margin-top: 0.25rem;
+      font-size: 0.74rem;
+      color: var(--faint);
+      font-weight: 500;
     }
-    .conv-list {
-      flex: 1;
-      overflow-y: auto;
+    .search-box {
+      position: relative;
+      display: flex;
+      align-items: center;
     }
+    .search-box svg {
+      position: absolute;
+      inset-inline-start: 0.75rem;
+      width: 1rem;
+      height: 1rem;
+      color: var(--faint);
+      pointer-events: none;
+    }
+    .search-box input {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 11px;
+      background: var(--surface-soft);
+      padding: 0.55rem 2.4rem 0.55rem 0.85rem;
+      font: inherit;
+      font-size: 0.86rem;
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+    }
+    .search-box input::placeholder { color: var(--faint); }
+    .search-box input:focus {
+      background: var(--surface);
+      border-color: var(--primary-border);
+      box-shadow: 0 0 0 3px rgba(69, 105, 240, 0.10);
+    }
+
+    .conv-list { flex: 1; overflow-y: auto; padding: 0.6rem; }
     .conv-item {
-      margin: 0.65rem 0.75rem;
-      padding: 0.9rem 0.95rem;
-      border-bottom: 1px solid var(--border);
+      display: flex;
+      gap: 0.75rem;
+      align-items: flex-start;
+      padding: 0.8rem 0.85rem;
+      border-radius: 14px;
       border: 1px solid transparent;
-      border-radius: 16px;
       cursor: pointer;
-      transition: background 0.15s, border-color 0.15s, transform 0.15s;
+      margin-bottom: 2px;
+      transition: background 0.13s, border-color 0.13s;
+      position: relative;
     }
-    .conv-item:hover {
-      background: rgba(59, 130, 246, 0.06);
-      border-color: var(--border);
-      transform: translateY(-1px);
-    }
+    .conv-item:hover { background: var(--surface-soft); }
     .conv-item.active {
-      background: linear-gradient(135deg, rgba(59, 130, 246, 0.14), rgba(14, 165, 233, 0.10));
-      border-color: rgba(37, 99, 235, 0.30);
-      box-shadow: 0 10px 30px rgba(37, 99, 235, 0.14);
+      background: var(--primary-soft);
+      border-color: var(--primary-border);
     }
+    .conv-item.active::before {
+      content: "";
+      position: absolute;
+      inset-inline-start: 0;
+      top: 14px;
+      bottom: 14px;
+      width: 3.5px;
+      border-radius: 99px;
+      background: var(--primary);
+    }
+    .avatar {
+      flex-shrink: 0;
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      font-weight: 700;
+      color: #fff;
+      user-select: none;
+    }
+    .avatar.h0 { background: linear-gradient(135deg, #60a5fa, #3b82f6); }
+    .avatar.h1 { background: linear-gradient(135deg, #a78bfa, #7c3aed); }
+    .avatar.h2 { background: linear-gradient(135deg, #34d399, #059669); }
+    .avatar.h3 { background: linear-gradient(135deg, #fbbf24, #d97706); }
+    .avatar.h4 { background: linear-gradient(135deg, #f87171, #dc2626); }
+    .avatar.h5 { background: linear-gradient(135deg, #2dd4bf, #0d9488); }
+    .avatar.h6 { background: linear-gradient(135deg, #f472b6, #db2777); }
+    .avatar.h7 { background: linear-gradient(135deg, #818cf8, #4f46e5); }
+    .conv-item .conv-body { flex: 1; min-width: 0; }
     .conv-item .row1 {
       display: flex;
       justify-content: space-between;
@@ -527,72 +366,95 @@
     }
     .conv-item .name {
       font-weight: 600;
-      font-size: 0.95rem;
+      font-size: 0.92rem;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
+    .conv-item .time {
+      font-size: 0.7rem;
+      color: var(--faint);
+      white-space: nowrap;
+      font-weight: 500;
+      flex-shrink: 0;
+    }
     .conv-item .phone {
-      font-size: 0.75rem;
-      color: var(--muted);
+      font-size: 0.72rem;
+      color: var(--faint);
       direction: ltr;
       text-align: right;
+      margin-top: 1px;
     }
     .conv-item .preview {
       font-size: 0.8rem;
       color: var(--muted);
-      margin-top: 0.35rem;
+      margin-top: 0.3rem;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
-    .conv-item .row1 .actions {
+    .conv-item .preview.user-reply { color: var(--text); font-weight: 500; }
+    .conv-item .row2 {
       display: flex;
       align-items: center;
-      gap: 0.4rem;
+      gap: 0.35rem;
+      margin-top: 0.45rem;
+      flex-wrap: wrap;
     }
     .conv-delete {
+      font: inherit;
       background: transparent;
-      border: 1px solid rgba(220, 38, 38, 0.25);
-      color: #dc2626;
-      padding: 0.25rem 0.55rem;
-      border-radius: 999px;
-      font-size: 0.72rem;
-      font-weight: 600;
+      border: none;
+      color: var(--faint);
+      width: 26px;
+      height: 26px;
+      border-radius: 8px;
+      font-size: 0;
       cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      opacity: 0;
+      transition: opacity 0.13s, background 0.13s, color 0.13s;
       box-shadow: none;
-      transition: background 0.15s, color 0.15s;
+      padding: 0;
+      margin-inline-start: auto;
     }
-    .conv-delete:hover {
-      background: #dc2626;
-      color: #ffffff;
-    }
-    button.danger {
-      background: linear-gradient(135deg, #ef4444, #dc2626);
-      color: #ffffff;
-      box-shadow: 0 8px 18px rgba(220, 38, 38, 0.22);
-    }
-    button.danger:hover:not(:disabled) {
-      box-shadow: 0 12px 24px rgba(220, 38, 38, 0.30);
-    }
+    .conv-delete svg { width: 0.95rem; height: 0.95rem; }
+    .conv-item:hover .conv-delete { opacity: 1; }
+    .conv-delete:hover { background: #fee2e2; color: var(--danger); }
+
     .badge {
-      font-size: 0.7rem;
-      padding: 0.25rem 0.55rem;
+      font-size: 0.68rem;
+      font-weight: 600;
+      padding: 0.18rem 0.55rem;
       border-radius: 999px;
       white-space: nowrap;
-      background: var(--border);
-      border: 1px solid rgba(255,255,255,0.08);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      border: 1px solid transparent;
     }
-    .badge.bot { background: #dbeafe; color: #1d4ed8; }
-    .badge.human { background: #f3e8ff; color: #7e22ce; }
-    .badge.needs_human { background: #fee2e2; color: #b91c1c; }
-    .badge.closed { background: #dcfce7; color: #15803d; }
-    .badge.proactive { background: #fef3c7; color: #b45309; }
-    .conv-item .preview.user-reply {
-      color: var(--text);
-      font-weight: 500;
+    .badge::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+    .badge.bot { background: #eaf1fe; color: #2457d6; border-color: #d4e2fc; }
+    .badge.human { background: #f3edfe; color: #7233d4; border-color: #e4d7fb; }
+    .badge.needs_human { background: #feeaea; color: #c92020; border-color: #fbd3d3; }
+    .badge.needs_human::before { animation: pulse 1.2s ease-in-out infinite; }
+    .badge.closed { background: #e6f8ec; color: #178041; border-color: #c8efd6; }
+    .badge.proactive { background: #fdf3e0; color: #b06407; border-color: #f8e2b8; }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.35; transform: scale(0.75); }
     }
 
+    /* ===== Chat main ===== */
     .main {
       display: flex;
       flex-direction: column;
@@ -600,31 +462,33 @@
       min-height: 0;
       overflow: hidden;
       direction: rtl;
-      background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(238, 244, 251, 0.96) 55%),
-        var(--bg);
+      background: var(--bg);
     }
     .main-header {
-      padding: 1.1rem 1.35rem;
+      padding: 0.8rem 1.35rem;
+      min-height: 64px;
       border-bottom: 1px solid var(--border);
       display: flex;
       flex-wrap: wrap;
       align-items: center;
-      gap: 0.75rem;
-      background: rgba(255, 255, 255, 0.78);
-      backdrop-filter: blur(18px);
+      gap: 0.85rem;
+      background: var(--surface);
     }
     .main-header .title {
       flex: 1;
-      min-width: 200px;
+      min-width: 180px;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
     }
-    .main-header .title h2 {
-      font-size: 1.05rem;
-    }
+    .main-header .avatar { width: 40px; height: 40px; font-size: 0.95rem; }
+    .main-header .title h2 { font-size: 1rem; font-weight: 700; }
     .main-header .title .meta {
-      font-size: 0.8rem;
+      font-size: 0.76rem;
       color: var(--muted);
-      margin-top: 0.2rem;
+      direction: ltr;
+      text-align: right;
+      margin-top: 1px;
     }
     .toolbar {
       display: flex;
@@ -632,38 +496,50 @@
       gap: 0.5rem;
       align-items: center;
     }
+
     button {
       font: inherit;
       cursor: pointer;
       border: none;
-      border-radius: 12px;
-      padding: 0.62rem 1rem;
-      background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+      border-radius: 10px;
+      padding: 0.55rem 1.05rem;
+      background: var(--grad-primary);
       color: #fff;
       font-size: 0.85rem;
       font-weight: 600;
-      box-shadow: 0 10px 24px rgba(37, 99, 235, 0.22);
-      transition: transform 0.15s, opacity 0.15s, box-shadow 0.15s;
+      box-shadow: 0 4px 12px rgba(69, 105, 240, 0.28);
+      transition: transform 0.13s, opacity 0.13s, box-shadow 0.13s, background 0.13s;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.45rem;
     }
     button:hover:not(:disabled) {
       transform: translateY(-1px);
-      box-shadow: 0 14px 30px rgba(37, 99, 235, 0.30);
+      box-shadow: 0 7px 18px rgba(69, 105, 240, 0.36);
     }
     button.secondary {
-      background: #ffffff;
+      background: var(--surface);
       color: var(--text);
-      border: 1px solid var(--border);
-      box-shadow: none;
+      border: 1px solid var(--border-strong);
+      box-shadow: var(--shadow-sm);
     }
-    button:disabled {
-      opacity: 0.45;
-      cursor: not-allowed;
+    button.secondary:hover:not(:disabled) {
+      box-shadow: var(--shadow-md);
+      border-color: var(--primary-border);
+      color: var(--primary-strong);
     }
-    button.danger-outline {
-      background: transparent;
-      border: 1px solid #b45309;
-      color: #fdba74;
+    button.danger {
+      background: var(--surface);
+      color: var(--danger);
+      border: 1px solid #f3c6c6;
+      box-shadow: var(--shadow-sm);
     }
+    button.danger:hover:not(:disabled) {
+      background: #fef2f2;
+      box-shadow: 0 4px 12px rgba(220, 38, 38, 0.15);
+    }
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
 
     .messages-wrap {
       flex: 1;
@@ -672,46 +548,60 @@
       overflow-x: hidden;
       -webkit-overflow-scrolling: touch;
       overscroll-behavior: contain;
-      padding: 1.5rem 1.35rem;
-      background-image:
-        linear-gradient(rgba(37, 99, 235, 0.045) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(37, 99, 235, 0.045) 1px, transparent 1px);
-      background-size: 36px 36px;
+      padding: 1.5rem 1.75rem;
+      background:
+        radial-gradient(circle at 20% 10%, rgba(69, 105, 240, 0.045), transparent 30rem),
+        radial-gradient(circle at 85% 90%, rgba(124, 58, 237, 0.04), transparent 26rem),
+        var(--bg);
     }
-    .bubble-row {
+    .day-sep {
       display: flex;
-      margin-bottom: 0.65rem;
+      align-items: center;
+      justify-content: center;
+      margin: 1.1rem 0 0.9rem;
     }
+    .day-sep span {
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: var(--muted);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 0.22rem 0.8rem;
+      box-shadow: var(--shadow-sm);
+    }
+    .bubble-row { display: flex; margin-bottom: 0.55rem; }
     .bubble-row.user { justify-content: flex-start; }
     .bubble-row.bot,
     .bubble-row.human_agent { justify-content: flex-end; }
     .bubble {
-      max-width: 72%;
-      padding: 0.78rem 0.95rem;
-      border-radius: 18px;
+      max-width: 68%;
+      padding: 0.7rem 0.95rem;
+      border-radius: 16px;
       font-size: 0.9rem;
-      line-height: 1.45;
+      line-height: 1.5;
       white-space: pre-wrap;
       word-break: break-word;
-      box-shadow: var(--shadow);
+      box-shadow: var(--shadow-sm);
     }
     .bubble-row.user .bubble {
-      background: var(--user-bubble);
+      background: var(--grad-primary);
       color: #fff;
-      border-bottom-right-radius: 4px;
+      border-bottom-right-radius: 5px;
     }
     .bubble-row.bot .bubble,
     .bubble-row.human_agent .bubble {
-      background: var(--agent-bubble);
+      background: var(--surface);
       color: var(--text);
-      border-bottom-left-radius: 4px;
-      border: 1px solid rgba(37, 99, 235, 0.12);
+      border: 1px solid var(--border);
+      border-bottom-left-radius: 5px;
     }
     .bubble-meta {
-      font-size: 0.68rem;
-      color: var(--muted);
-      margin-top: 0.25rem;
-      padding: 0 0.25rem;
+      font-size: 0.66rem;
+      color: var(--faint);
+      margin-top: 0.28rem;
+      padding: 0 0.3rem;
+      font-weight: 500;
     }
     .bubble-row.user .bubble-meta { text-align: left; }
     .bubble-row.bot .bubble-meta,
@@ -719,64 +609,699 @@
 
     .composer {
       border-top: 1px solid var(--border);
-      padding: 1rem 1.35rem;
-      background: rgba(255, 255, 255, 0.90);
+      padding: 0.9rem 1.35rem;
+      background: var(--surface);
       display: none;
-      backdrop-filter: blur(18px);
     }
     .composer.visible { display: block; }
     .composer-inner {
       display: flex;
-      gap: 0.5rem;
+      gap: 0.6rem;
       align-items: flex-end;
+      max-width: 980px;
+      margin: 0 auto;
     }
     textarea {
       flex: 1;
-      min-height: 44px;
-      max-height: 120px;
+      min-height: 46px;
+      max-height: 130px;
       resize: vertical;
       border-radius: 14px;
-      border: 1px solid var(--border);
-      background: #ffffff;
+      border: 1px solid var(--border-strong);
+      background: var(--surface-soft);
       color: var(--text);
-      padding: 0.75rem 0.9rem;
+      padding: 0.72rem 0.95rem;
       font: inherit;
       font-size: 0.9rem;
       outline: none;
-      transition: border-color 0.15s, box-shadow 0.15s;
+      transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
     }
     textarea:focus {
-      border-color: rgba(79, 140, 255, 0.7);
-      box-shadow: 0 0 0 3px rgba(79, 140, 255, 0.12);
+      background: var(--surface);
+      border-color: var(--primary-border);
+      box-shadow: 0 0 0 3px rgba(69, 105, 240, 0.10);
     }
     .empty-state {
       flex: 1;
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
+      gap: 0.85rem;
       color: var(--muted);
       font-size: 0.95rem;
+      font-weight: 500;
     }
+    .empty-state .empty-icon {
+      width: 72px;
+      height: 72px;
+      border-radius: 22px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--primary);
+    }
+    .empty-state .empty-icon svg { width: 34px; height: 34px; }
+
+    /* ===== Leads view ===== */
+    .leads-view {
+      direction: rtl;
+      width: 100%;
+      overflow: hidden;
+      flex-direction: column;
+      background: var(--bg);
+    }
+    .leads-scroll {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      background:
+        radial-gradient(ellipse 85% 50% at 100% -8%, rgba(91, 123, 255, 0.08), transparent 55%),
+        var(--bg);
+    }
+    .leads-hero {
+      padding: 1.35rem 1.65rem 0.85rem;
+    }
+    .leads-hero-title-row {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      flex-wrap: wrap;
+    }
+    .leads-hero h1 {
+      font-size: 1.45rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.2;
+    }
+    .leads-hero p {
+      font-size: 0.84rem;
+      color: var(--muted);
+      margin-top: 0.35rem;
+      line-height: 1.45;
+      max-width: 40rem;
+    }
+    .leads-count {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--primary-strong);
+      background: var(--primary-soft);
+      border: 1px solid var(--primary-border);
+      border-radius: 999px;
+      padding: 0.22rem 0.72rem;
+      white-space: nowrap;
+    }
+    .leads-control-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      padding: 0 1.65rem 0.85rem;
+      flex-wrap: wrap;
+    }
+    .leads-segments {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 4px;
+      box-shadow: var(--shadow-sm);
+      flex-shrink: 0;
+    }
+    .leads-segment-btn {
+      font: inherit;
+      cursor: pointer;
+      border: none;
+      border-radius: 9px;
+      padding: 0.42rem 1.05rem;
+      background: transparent;
+      color: var(--muted);
+      font-size: 0.82rem;
+      font-weight: 600;
+      box-shadow: none;
+      transition: background 0.13s, color 0.13s, box-shadow 0.13s;
+    }
+    .leads-segment-btn:hover:not(.active) { color: var(--text); transform: none; box-shadow: none; }
+    .leads-segment-btn.active {
+      background: var(--grad-primary);
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(69, 105, 240, 0.28);
+    }
+    .leads-control-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      flex: 1;
+      min-width: 0;
+      flex-wrap: wrap;
+    }
+    .leads-search {
+      flex: 1;
+      min-width: 180px;
+      max-width: 320px;
+    }
+    .leads-actions-group {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-shrink: 0;
+    }
+    .leads-actions-group button {
+      font-size: 0.82rem;
+      padding: 0.5rem 0.95rem;
+      border-radius: 11px;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .leads-actions-group button svg {
+      width: 1rem;
+      height: 1rem;
+      flex-shrink: 0;
+    }
+    .leads-settings-panel {
+      margin: 0 1.65rem 0.85rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+    }
+    .leads-settings-head {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(180deg, var(--surface-soft) 0%, var(--surface) 100%);
+    }
+    .leads-settings-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--primary-soft);
+      border: 1px solid var(--primary-border);
+      color: var(--primary-strong);
+      flex-shrink: 0;
+    }
+    .leads-settings-icon svg {
+      width: 16px;
+      height: 16px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .leads-settings-head strong {
+      display: block;
+      font-size: 0.84rem;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.25;
+    }
+    .leads-settings-head span {
+      display: block;
+      font-size: 0.72rem;
+      color: var(--faint);
+      margin-top: 0.1rem;
+    }
+    .leads-settings-body {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.65rem;
+      padding: 0.85rem 1rem;
+    }
+    .leads-setting-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.85rem;
+      padding: 0.7rem 0.85rem;
+      background: var(--surface-soft);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      cursor: pointer;
+      user-select: none;
+      transition: border-color 0.13s, background 0.13s;
+    }
+    .leads-setting-item:hover {
+      border-color: var(--primary-border);
+      background: #f8faff;
+    }
+    .leads-setting-text {
+      display: flex;
+      flex-direction: column;
+      gap: 0.12rem;
+      min-width: 0;
+    }
+    .leads-setting-title {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text);
+      line-height: 1.3;
+    }
+    .leads-setting-desc {
+      font-size: 0.7rem;
+      color: var(--faint);
+      line-height: 1.4;
+    }
+    .leads-toggle {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 38px;
+      height: 22px;
+      border-radius: 999px;
+      background: #d4dae6;
+      position: relative;
+      cursor: pointer;
+      outline: none;
+      transition: background 0.18s;
+      flex-shrink: 0;
+      margin: 0;
+    }
+    .leads-toggle::after {
+      content: "";
+      position: absolute;
+      top: 2.5px;
+      inset-inline-start: 2.5px;
+      width: 17px;
+      height: 17px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 1px 3px rgba(22, 32, 58, 0.25);
+      transition: transform 0.18s;
+    }
+    .leads-toggle:checked { background: var(--primary); }
+    .leads-toggle:checked::after { transform: translateX(-16px); }
+    .leads-toggle:disabled { opacity: 0.5; cursor: wait; }
+    #leadsImportInput { display: none; }
+    .import-status {
+      display: block;
+      font-size: 0.74rem;
+      color: var(--muted);
+      padding: 0 1rem 0.75rem;
+      line-height: 1.4;
+    }
+    .import-status:empty { display: none; }
+    .leads-filter-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0 1.65rem 0.75rem;
+      min-height: 0;
+    }
+    .leads-filter-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--faint);
+      flex-shrink: 0;
+    }
+    .leads-filter-scroll {
+      flex: 1;
+      min-width: 0;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .leads-filter-scroll::-webkit-scrollbar { display: none; }
+    .leads-stats {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      flex-wrap: nowrap;
+      padding-bottom: 2px;
+    }
+    .stat-chip {
+      font: inherit;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 0.4rem 0.9rem;
+      background: var(--surface);
+      color: var(--muted);
+      font-size: 0.8rem;
+      font-weight: 600;
+      box-shadow: none;
+      transition: border-color 0.13s, background 0.13s, color 0.13s;
+    }
+    .stat-chip:hover { transform: none; box-shadow: var(--shadow-sm); color: var(--text); }
+    .stat-chip .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .stat-chip .num {
+      font-weight: 700;
+      color: var(--text);
+      font-size: 0.82rem;
+    }
+    .stat-chip.active {
+      border-color: var(--primary-border);
+      background: var(--primary-soft);
+      color: var(--primary-strong);
+    }
+    .stat-chip.active .num { color: var(--primary-strong); }
+    .dot-all { background: var(--primary); }
+    .dot-no_contact { background: #94a3b8; }
+    .dot-message_sent { background: #3b82f6; }
+    .dot-active_conversation { background: #8b5cf6; }
+    .dot-relevant { background: #22c55e; }
+    .dot-not_relevant { background: #ef4444; }
+
+    /* Table */
+    .leads-table-wrap {
+      flex: 1;
+      min-height: 0;
+      overflow: auto;
+      padding: 0 1.65rem 1.65rem;
+    }
+    .leads-table-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      box-shadow: var(--shadow-md);
+    }
+    table.leads-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.86rem;
+    }
+    table.leads-table th,
+    table.leads-table td {
+      padding: 0.62rem 0.85rem;
+      text-align: right;
+      vertical-align: middle;
+    }
+    table.leads-table thead th {
+      background: var(--surface-soft);
+      font-weight: 600;
+      font-size: 0.72rem;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    table.leads-table tbody tr {
+      border-bottom: 1px solid #f0f3f9;
+      transition: background 0.13s;
+    }
+    table.leads-table tbody tr:last-child { border-bottom: none; }
+    table.leads-table tbody tr:hover { background: var(--surface-soft); }
+    table.leads-table tbody tr td:first-child {
+      border-inline-start: 3px solid transparent;
+    }
+    table.leads-table tbody tr.row-no_contact td:first-child { border-inline-start-color: #cbd5e1; }
+    table.leads-table tbody tr.row-message_sent td:first-child { border-inline-start-color: #60a5fa; }
+    table.leads-table tbody tr.row-active_conversation td:first-child { border-inline-start-color: #a78bfa; }
+    table.leads-table tbody tr.row-relevant td:first-child { border-inline-start-color: #4ade80; }
+    table.leads-table tbody tr.row-not_relevant td:first-child { border-inline-start-color: #f87171; }
+
+    .lead-name-cell {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      min-width: 0;
+    }
+    .lead-avatar {
+      flex-shrink: 0;
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #fff;
+    }
+    .lead-name-text {
+      font-weight: 600;
+      color: var(--text);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 170px;
+    }
+    .lead-business {
+      font-weight: 500;
+      color: var(--muted);
+      max-width: 190px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      display: inline-block;
+      vertical-align: middle;
+    }
+    .lead-tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.25rem 0.65rem;
+      border-radius: 7px;
+      font-size: 0.74rem;
+      font-weight: 600;
+      background: var(--surface-soft);
+      color: var(--muted);
+      border: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    .lead-source {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.25rem 0.65rem;
+      border-radius: 7px;
+      font-size: 0.73rem;
+      font-weight: 600;
+      background: var(--primary-soft);
+      color: var(--primary-strong);
+      border: 1px solid var(--primary-border);
+      white-space: nowrap;
+    }
+    .lead-send-disabled {
+      color: var(--faint);
+      font-size: 0.85rem;
+      user-select: none;
+    }
+    table.leads-table td.phone {
+      direction: ltr;
+      text-align: right;
+      font-family: "Cascadia Code", "Consolas", monospace;
+      font-size: 0.8rem;
+      color: var(--muted);
+      font-weight: 500;
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+    }
+    .lead-date {
+      font-size: 0.76rem;
+      color: var(--faint);
+      white-space: nowrap;
+      font-weight: 500;
+    }
+    .lead-message-name-cell {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      min-width: 0;
+    }
+    .lead-message-name {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.28rem 0.7rem;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--primary-strong);
+      background: var(--primary-soft);
+      border: 1px solid var(--primary-border);
+      white-space: nowrap;
+    }
+    .lead-message-name.empty {
+      color: var(--faint);
+      font-weight: 500;
+      background: var(--surface-soft);
+      border-color: var(--border);
+    }
+    .lead-message-name-input {
+      width: 100%;
+      min-width: 72px;
+      max-width: 130px;
+      border: 1px solid var(--primary-border);
+      border-radius: 9px;
+      padding: 0.32rem 0.55rem;
+      font: inherit;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text);
+      background: var(--surface);
+      outline: none;
+    }
+    .lead-message-name-input:focus { box-shadow: 0 0 0 3px rgba(69, 105, 240, 0.12); }
+    .lead-icon-btn {
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      height: 30px;
+      font: inherit;
+      cursor: pointer;
+      border: none;
+      border-radius: 8px;
+      padding: 0;
+      color: var(--faint);
+      background: transparent;
+      box-shadow: none;
+      transition: background 0.13s, color 0.13s, opacity 0.13s;
+    }
+    .lead-icon-btn svg { width: 1rem; height: 1rem; display: block; }
+    .lead-icon-btn:hover:not(:disabled) {
+      background: var(--primary-soft);
+      color: var(--primary-strong);
+      transform: none;
+      box-shadow: none;
+    }
+    .lead-delete-btn:hover:not(:disabled) {
+      background: #fee2e2;
+      color: var(--danger);
+    }
+    .lead-send-btn { color: var(--primary); }
+    .lead-icon-btn:disabled { opacity: 0.4; cursor: wait; }
+    .lead-edit-btn.save,
+    .lead-edit-btn.cancel {
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: auto;
+      height: auto;
+      padding: 0.28rem 0.6rem;
+      font: inherit;
+      font-size: 0.72rem;
+      font-weight: 600;
+      cursor: pointer;
+      border-radius: 8px;
+      box-shadow: none;
+      border: 1px solid transparent;
+    }
+    .lead-edit-btn.save { color: #15803d; border-color: #bbf7d0; background: #f0fdf4; }
+    .lead-edit-btn.save:hover:not(:disabled) { background: #dcfce7; transform: none; box-shadow: none; }
+    .lead-edit-btn.cancel { color: #b91c1c; border-color: #fecaca; background: #fef2f2; }
+    .lead-edit-btn.cancel:hover:not(:disabled) { background: #fee2e2; transform: none; box-shadow: none; }
+    .lead-send-cell, .lead-delete-cell {
+      width: 48px;
+      text-align: center !important;
+      padding-inline: 0.45rem !important;
+    }
+    .lead-message-name-cell.editing .lead-message-name,
+    .lead-message-name-cell.editing .lead-icon-btn[data-action="edit"] { display: none; }
+    .lead-message-name-cell:not(.editing) .lead-message-name-input,
+    .lead-message-name-cell:not(.editing) .lead-edit-btn[data-action="save"],
+    .lead-message-name-cell:not(.editing) .lead-edit-btn[data-action="cancel"] { display: none; }
+
+    .lead-status-wrap { position: relative; display: inline-flex; }
+    .lead-status-select {
+      appearance: none;
+      -webkit-appearance: none;
+      border: 1px solid transparent;
+      border-radius: 999px;
+      padding: 0.38rem 0.9rem 0.38rem 1.9rem;
+      font: inherit;
+      font-size: 0.76rem;
+      font-weight: 700;
+      cursor: pointer;
+      outline: none;
+      transition: box-shadow 0.13s, border-color 0.13s, filter 0.13s;
+      background-repeat: no-repeat;
+      background-position: left 0.55rem center;
+      background-size: 0.62rem;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%2364748b'%3E%3Cpath fill-rule='evenodd' d='M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.25a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z'/%3E%3C/svg%3E");
+    }
+    .lead-status-select:hover:not(:disabled) { filter: brightness(0.97); }
+    .lead-status-select:focus { box-shadow: 0 0 0 3px rgba(69, 105, 240, 0.14); }
+    .lead-status-select:disabled { opacity: 0.6; cursor: wait; }
+    .lead-status-select.status-no_contact { background-color: #f1f5f9; color: #475569; border-color: #e2e8f0; }
+    .lead-status-select.status-message_sent { background-color: #e3edfd; color: #1d4ed8; border-color: #c6dbfb; }
+    .lead-status-select.status-active_conversation { background-color: #efeafd; color: #6d28d9; border-color: #ddd2fa; }
+    .lead-status-select.status-relevant { background-color: #e2f7e9; color: #15803d; border-color: #c1edd0; }
+    .lead-status-select.status-not_relevant { background-color: #fde8e8; color: #b91c1c; border-color: #f9cfcf; }
+
+    .leads-empty {
+      padding: 3.5rem 2rem;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.92rem;
+      font-weight: 500;
+      background: var(--surface);
+      border: 1px dashed var(--border-strong);
+      border-radius: var(--radius-lg);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.85rem;
+    }
+    .leads-empty .empty-icon {
+      width: 60px;
+      height: 60px;
+      border-radius: 18px;
+      background: var(--primary-soft);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--primary);
+    }
+    .leads-empty .empty-icon svg { width: 28px; height: 28px; }
+
+    /* ===== Toast ===== */
     .err-toast {
       position: fixed;
-      bottom: 1rem;
+      bottom: 1.25rem;
       left: 50%;
-      transform: translateX(-50%);
-      background: #7f1d1d;
+      transform: translateX(-50%) translateY(8px);
+      background: #1f2937;
       color: #fecaca;
-      padding: 0.6rem 1rem;
-      border-radius: 8px;
+      padding: 0.7rem 1.15rem;
+      border-radius: 12px;
       font-size: 0.85rem;
+      font-weight: 500;
       display: none;
       z-index: 100;
+      box-shadow: var(--shadow-lg);
+      border: 1px solid rgba(248, 113, 113, 0.3);
+      opacity: 0;
+      transition: opacity 0.2s, transform 0.2s;
     }
-    .err-toast.show { display: block; }
+    .err-toast.show {
+      display: block;
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
 
+    /* ===== Modal ===== */
     .modal-overlay {
       position: fixed;
       inset: 0;
-      background: rgba(15, 23, 42, 0.45);
-      backdrop-filter: blur(4px);
+      background: rgba(22, 32, 58, 0.45);
+      backdrop-filter: blur(5px);
       display: none;
       align-items: center;
       justify-content: center;
@@ -785,48 +1310,58 @@
     }
     .modal-overlay.show { display: flex; }
     .modal-card {
-      width: min(100%, 420px);
-      background: #fff;
+      width: min(100%, 430px);
+      background: var(--surface);
       border: 1px solid var(--border);
       border-radius: 20px;
-      box-shadow: var(--shadow);
-      padding: 1.35rem 1.35rem 1.1rem;
+      box-shadow: var(--shadow-lg);
+      padding: 1.5rem 1.5rem 1.25rem;
+      animation: modal-in 0.18s ease-out;
+    }
+    @keyframes modal-in {
+      from { opacity: 0; transform: translateY(10px) scale(0.98); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
     }
     .modal-card h3 {
-      font-size: 1.05rem;
-      margin-bottom: 1rem;
-      color: var(--accent-strong);
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 1.15rem;
+      color: var(--text);
     }
     .modal-field {
       display: flex;
       flex-direction: column;
       gap: 0.35rem;
-      margin-bottom: 0.85rem;
+      margin-bottom: 0.9rem;
     }
     .modal-field label {
-      font-size: 0.8rem;
+      font-size: 0.78rem;
       font-weight: 600;
       color: var(--muted);
     }
     .modal-field input {
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 0.65rem 0.8rem;
+      border: 1px solid var(--border-strong);
+      border-radius: 11px;
+      padding: 0.62rem 0.85rem;
       font: inherit;
       font-size: 0.9rem;
       outline: none;
-      transition: border-color 0.15s, box-shadow 0.15s;
+      background: var(--surface-soft);
+      transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
     }
     .modal-field input:focus {
-      border-color: rgba(37, 99, 235, 0.45);
-      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+      background: var(--surface);
+      border-color: var(--primary-border);
+      box-shadow: 0 0 0 3px rgba(69, 105, 240, 0.10);
     }
     .modal-actions {
       display: flex;
       gap: 0.5rem;
       justify-content: flex-start;
-      margin-top: 1rem;
+      margin-top: 1.15rem;
     }
+
+    /* ===== Auth ===== */
     .auth-gate {
       position: fixed;
       inset: 0;
@@ -836,75 +1371,1083 @@
       justify-content: center;
       padding: 1.5rem;
       background:
-        radial-gradient(circle at top right, rgba(59, 130, 246, 0.22), transparent 34rem),
-        radial-gradient(circle at bottom left, rgba(14, 165, 233, 0.14), transparent 28rem),
+        radial-gradient(circle at 15% 15%, rgba(91, 123, 255, 0.14), transparent 32rem),
+        radial-gradient(circle at 85% 85%, rgba(124, 58, 237, 0.10), transparent 30rem),
         var(--bg);
     }
     .auth-gate.hidden { display: none; }
     .auth-card {
-      width: min(100%, 380px);
-      background: var(--panel-strong);
+      width: min(100%, 392px);
+      background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 22px;
-      padding: 2rem 1.75rem;
-      box-shadow: var(--shadow);
+      border-radius: 24px;
+      padding: 2.25rem 2rem;
+      box-shadow: var(--shadow-lg);
       display: flex;
       flex-direction: column;
-      gap: 0.85rem;
+      gap: 0.9rem;
     }
+    .auth-brand {
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+      margin-bottom: 0.25rem;
+    }
+    .auth-brand .brand-logo { width: 44px; height: 44px; border-radius: 13px; font-size: 1.25rem; }
     .auth-card h1 {
-      font-size: 1.5rem;
-      color: var(--accent-strong);
-      letter-spacing: -0.03em;
+      font-size: 1.45rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: var(--text);
     }
     .auth-card p {
       color: var(--muted);
-      font-size: 0.92rem;
-      margin-bottom: 0.35rem;
+      font-size: 0.9rem;
+      margin-bottom: 0.3rem;
     }
     .auth-card input {
-      border: 1px solid var(--border);
+      border: 1px solid var(--border-strong);
       border-radius: 12px;
-      padding: 0.7rem 0.85rem;
+      padding: 0.72rem 0.9rem;
       font: inherit;
       font-size: 0.92rem;
       outline: none;
+      background: var(--surface-soft);
+      transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
     }
     .auth-card input:focus {
-      border-color: rgba(37, 99, 235, 0.45);
-      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+      background: var(--surface);
+      border-color: var(--primary-border);
+      box-shadow: 0 0 0 3px rgba(69, 105, 240, 0.10);
     }
     .auth-card button[type="submit"] {
-      margin-top: 0.35rem;
+      margin-top: 0.4rem;
       border: none;
       border-radius: 12px;
-      padding: 0.75rem 1rem;
+      padding: 0.78rem 1rem;
       font: inherit;
       font-weight: 700;
+      font-size: 0.95rem;
       color: #fff;
       cursor: pointer;
-      background: linear-gradient(135deg, var(--accent), var(--accent-strong));
-      box-shadow: 0 8px 20px rgba(37, 99, 235, 0.22);
+      background: var(--grad-primary);
+      box-shadow: 0 6px 18px rgba(69, 105, 240, 0.32);
     }
-    .auth-card button[type="submit"]:disabled {
-      opacity: 0.65;
-      cursor: wait;
+    .auth-card button[type="submit"]:disabled { opacity: 0.65; cursor: wait; }
+    .auth-error { min-height: 1.2rem; color: var(--danger); font-size: 0.85rem; }
+
+    /* ===== Home dashboard ===== */
+    .home-view {
+      direction: rtl;
+      background: var(--bg);
+      overflow: hidden;
+      flex-direction: column;
     }
-    .auth-error {
+    .home-scroll {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      padding: 1.35rem 1.65rem 2rem;
+      background:
+        radial-gradient(ellipse 90% 55% at 100% -5%, rgba(91, 123, 255, 0.09), transparent 55%),
+        radial-gradient(ellipse 70% 45% at 0% 100%, rgba(124, 58, 237, 0.05), transparent 50%),
+        var(--bg);
+    }
+    .home-hero {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 1.25rem;
+      flex-wrap: wrap;
+      margin-bottom: 1.5rem;
+    }
+    .home-hero-text { min-width: 0; }
+    .home-hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      color: var(--primary-strong);
+      background: var(--primary-soft);
+      border: 1px solid var(--primary-border);
+      border-radius: 999px;
+      padding: 0.2rem 0.65rem;
+      margin-bottom: 0.55rem;
+    }
+    .home-hero-badge::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #22c55e;
+      box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.25);
+      animation: home-pulse 2s ease-in-out infinite;
+    }
+    @keyframes home-pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.55; }
+    }
+    .home-hero h1 {
+      font-size: 1.55rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.2;
+    }
+    .home-hero p {
+      font-size: 0.86rem;
+      color: var(--muted);
+      margin-top: 0.35rem;
+      max-width: 36rem;
+      line-height: 1.5;
+    }
+    .home-hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      flex-shrink: 0;
+    }
+    .home-hero-actions button {
+      font-size: 0.82rem;
+      padding: 0.52rem 1rem;
+      border-radius: 11px;
+    }
+    .home-hero-actions .primary {
+      box-shadow: 0 6px 18px rgba(69, 105, 240, 0.28);
+    }
+    .home-section {
+      margin-bottom: 1.15rem;
+    }
+    .home-section-title {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--faint);
+      margin-bottom: 0.65rem;
+      padding-inline-start: 0.15rem;
+    }
+    .home-stats-row {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.75rem;
+    }
+    .home-stat-card {
+      position: relative;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 1rem 1.05rem 0.95rem;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+      transition: box-shadow 0.18s, border-color 0.18s, transform 0.18s;
+      overflow: hidden;
+    }
+    .home-stat-card::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      inset-inline: 0;
+      height: 3px;
+      background: var(--stat-accent, var(--border));
+      opacity: 0.85;
+    }
+    .home-stat-card:hover {
+      box-shadow: var(--shadow-md);
+      border-color: var(--primary-border);
+      transform: translateY(-1px);
+    }
+    .home-stat-card.alert {
+      --stat-accent: #f87171;
+      border-color: #fecaca;
+      background: linear-gradient(165deg, #fff 0%, #fef2f2 88%);
+    }
+    .home-stat-card.primary {
+      --stat-accent: var(--primary);
+      border-color: var(--primary-border);
+      background: linear-gradient(165deg, #fff 0%, var(--primary-soft) 92%);
+    }
+    .home-stat-card.success {
+      --stat-accent: #22c55e;
+      border-color: #bbf7d0;
+      background: linear-gradient(165deg, #fff 0%, #f0fdf4 92%);
+    }
+    .home-stat-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.35rem;
+    }
+    .home-stat-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--surface-soft);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      flex-shrink: 0;
+    }
+    .home-stat-card.primary .home-stat-icon {
+      background: rgba(69, 105, 240, 0.12);
+      border-color: var(--primary-border);
+      color: var(--primary-strong);
+    }
+    .home-stat-card.alert .home-stat-icon {
+      background: rgba(220, 38, 38, 0.1);
+      border-color: #fecaca;
+      color: var(--danger);
+    }
+    .home-stat-card.success .home-stat-icon {
+      background: rgba(34, 197, 94, 0.1);
+      border-color: #bbf7d0;
+      color: #16a34a;
+    }
+    .home-stat-icon svg {
+      width: 17px;
+      height: 17px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .home-stat-label {
+      font-size: 0.76rem;
+      font-weight: 600;
+      color: var(--muted);
+      order: 2;
+    }
+    .home-stat-value {
+      font-size: 1.65rem;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      line-height: 1.1;
+      color: var(--text);
+      order: 1;
+    }
+    .home-stat-card.alert .home-stat-value { color: var(--danger); }
+    .home-stat-card.primary .home-stat-value { color: var(--primary-strong); }
+    .home-stat-card.success .home-stat-value { color: #15803d; }
+    .home-stat-hint {
+      font-size: 0.7rem;
+      color: var(--faint);
+      font-weight: 500;
+      order: 3;
+      margin-top: 0.15rem;
+    }
+    .home-dashboard-grid {
+      display: grid;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      gap: 0.85rem;
+      margin-top: 0.35rem;
+    }
+    .home-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 0;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    .home-panel.span-5 { grid-column: span 5; }
+    .home-panel.span-7 { grid-column: span 7; }
+    .home-panel.span-6 { grid-column: span 6; }
+    .home-panel.span-12 { grid-column: span 12; }
+    .home-panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.65rem;
+      padding: 0.9rem 1.1rem;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(180deg, var(--surface-soft) 0%, var(--surface) 100%);
+    }
+    .home-panel-head-left {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      min-width: 0;
+    }
+    .home-panel-icon {
+      width: 30px;
+      height: 30px;
+      border-radius: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      background: var(--primary-soft);
+      border: 1px solid var(--primary-border);
+      color: var(--primary-strong);
+    }
+    .home-panel-icon.alert {
+      background: #fef2f2;
+      border-color: #fecaca;
+      color: var(--danger);
+    }
+    .home-panel-icon.muted {
+      background: var(--surface-soft);
+      border-color: var(--border);
+      color: var(--muted);
+    }
+    .home-panel-icon svg {
+      width: 15px;
+      height: 15px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .home-panel h3 {
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.25;
+    }
+    .home-panel-link {
+      font-size: 0.74rem;
+      font-weight: 600;
+      color: var(--primary-strong);
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 0.25rem 0.45rem;
+      border-radius: 8px;
+      transition: background 0.13s;
+      font-family: inherit;
+    }
+    .home-panel-link:hover {
+      background: var(--primary-soft);
+    }
+    .home-panel-body {
+      padding: 0.85rem 1.05rem 1rem;
+      flex: 1;
+      min-height: 0;
+    }
+    .home-status-bars {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .home-status-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-rows: auto auto;
+      gap: 0.28rem 0.65rem;
+      align-items: center;
+      padding: 0.55rem 0.65rem;
+      border-radius: 11px;
+      background: var(--surface-soft);
+      border: 1px solid transparent;
+      transition: border-color 0.13s, background 0.13s;
+    }
+    .home-status-row:hover {
+      border-color: var(--border);
+      background: #f4f7fc;
+    }
+    .home-status-row .label-row {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      grid-column: 1;
+      grid-row: 1;
+      min-width: 0;
+    }
+    .home-status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .home-status-row .label {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--text);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .home-status-row .count {
+      font-size: 0.82rem;
+      font-weight: 800;
+      color: var(--text);
+      grid-column: 2;
+      grid-row: 1;
+      text-align: end;
+    }
+    .home-status-row .bar-wrap {
+      grid-column: 1 / -1;
+      grid-row: 2;
+      height: 6px;
+      background: rgba(22, 32, 58, 0.06);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+    .home-status-row .bar {
+      height: 100%;
+      border-radius: 99px;
+      min-width: 3px;
+      transition: width 0.35s ease;
+    }
+    .home-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+    .home-list-item {
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+      padding: 0.6rem 0.65rem;
+      border-radius: 12px;
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: background 0.13s, border-color 0.13s, box-shadow 0.13s;
+    }
+    .home-list-item:hover {
+      background: var(--surface-soft);
+      border-color: var(--border);
+      box-shadow: var(--shadow-sm);
+    }
+    .home-list-item .avatar {
+      width: 38px;
+      height: 38px;
+      font-size: 0.88rem;
+      box-shadow: 0 3px 10px rgba(22, 32, 58, 0.12);
+    }
+    .home-list-item .info { flex: 1; min-width: 0; }
+    .home-list-item .name {
+      font-size: 0.86rem;
+      font-weight: 600;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .home-list-item .meta {
+      font-size: 0.72rem;
+      color: var(--faint);
+      margin-top: 0.14rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .home-list-chevron {
+      flex-shrink: 0;
+      color: var(--faint);
+      opacity: 0;
+      transform: translateX(4px);
+      transition: opacity 0.13s, transform 0.13s;
+    }
+    .home-list-item:hover .home-list-chevron {
+      opacity: 1;
+      transform: translateX(0);
+    }
+    .home-list-chevron svg {
+      width: 16px;
+      height: 16px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .home-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 1.75rem 1rem;
+      gap: 0.55rem;
+    }
+    .home-empty-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--surface-soft);
+      border: 1px solid var(--border);
+      font-size: 1.15rem;
+      line-height: 1;
+    }
+    .home-empty p {
+      font-size: 0.84rem;
+      color: var(--muted);
+      font-weight: 500;
+      max-width: 16rem;
+      line-height: 1.45;
+    }
+
+    /* ===== AI Agent settings ===== */
+    .ai-agent-view {
+      direction: rtl;
+      background: var(--bg);
+      overflow: hidden;
+      flex-direction: column;
+    }
+    .ai-scroll {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      padding: 1.35rem 1.75rem 2rem;
+      width: 100%;
+      max-width: 100%;
+    }
+    .ai-header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 1.25rem;
+    }
+    .ai-header h1 {
+      font-size: 1.4rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+    .ai-header p {
+      font-size: 0.88rem;
+      color: var(--muted);
+      margin-top: 0.3rem;
+    }
+    .ai-header-actions {
+      display: flex;
+      gap: 0.55rem;
+      flex-wrap: wrap;
+    }
+    .ai-agent-meta {
+      margin-bottom: 1rem;
+    }
+    .ai-agent-meta label {
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 0.35rem;
+    }
+    .ai-agent-meta input {
+      width: min(100%, 280px);
+      border: 1px solid var(--border-strong);
+      border-radius: 11px;
+      padding: 0.6rem 0.8rem;
+      font: inherit;
+      font-size: 0.9rem;
+      background: var(--surface);
+    }
+    .ai-segments {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      margin-bottom: 1.1rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 4px;
+    }
+    .ai-segment-btn {
+      font: inherit;
+      cursor: pointer;
+      border: none;
+      border-radius: 9px;
+      padding: 0.42rem 0.95rem;
+      background: transparent;
+      color: var(--muted);
+      font-size: 0.82rem;
+      font-weight: 600;
+      box-shadow: none;
+    }
+    .ai-segment-btn:hover { color: var(--text); transform: none; box-shadow: none; }
+    .ai-segment-btn.active {
+      background: var(--primary-soft);
+      color: var(--primary-strong);
+      box-shadow: var(--shadow-sm);
+    }
+    .ai-panel { display: none; }
+    .ai-panel.active { display: block; }
+    .ai-field {
+      margin-bottom: 1rem;
+    }
+    .ai-field label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 0.4rem;
+    }
+    .ai-field .hint {
+      font-size: 0.74rem;
+      color: var(--faint);
+      font-weight: 500;
+      margin-bottom: 0.45rem;
+    }
+    .ai-field textarea {
+      width: 100%;
+      min-height: 120px;
+      border: 1px solid var(--border-strong);
+      border-radius: 12px;
+      padding: 0.75rem 0.9rem;
+      font: inherit;
+      font-size: 0.86rem;
+      line-height: 1.55;
+      background: var(--surface);
+      color: var(--text);
+      resize: vertical;
+      outline: none;
+    }
+    .ai-field textarea:focus {
+      border-color: var(--primary-border);
+      box-shadow: 0 0 0 3px rgba(69, 105, 240, 0.1);
+    }
+    .ai-field textarea.tall { min-height: 200px; }
+    .ai-preview-panel {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      min-height: calc(100vh - 260px);
+    }
+    .ai-preview-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--primary-strong);
+      background: var(--primary-soft);
+      border: 1px solid var(--primary-border);
+      border-radius: 999px;
+      padding: 0.22rem 0.65rem;
+      margin-inline-start: 0.5rem;
+    }
+    .ai-preview-badge.hidden { display: none; }
+    #aiPreviewText {
+      display: block;
+      width: 100%;
+      flex: 1;
+      min-height: calc(100vh - 320px);
+      font-family: "Cascadia Code", "Consolas", "Heebo", monospace;
+      font-size: 0.88rem;
+      line-height: 1.65;
+      padding: 1.1rem 1.25rem;
+      border-radius: 14px;
+      background: #151c2e;
+      color: #e8edf8;
+      border: 1px solid #2a3550;
+      resize: vertical;
+      outline: none;
+      box-shadow: inset 0 2px 12px rgba(0, 0, 0, 0.25);
+    }
+    #aiPreviewText:focus {
+      border-color: var(--primary);
+      box-shadow: inset 0 2px 12px rgba(0, 0, 0, 0.25), 0 0 0 3px rgba(69, 105, 240, 0.2);
+    }
+    .ai-preview-tabs {
+      display: flex;
+      gap: 0.35rem;
+      margin-bottom: 0.75rem;
+    }
+    .ai-preview-tab {
+      font: inherit;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.35rem 0.85rem;
+      background: var(--surface);
+      color: var(--muted);
+      font-size: 0.8rem;
+      font-weight: 600;
+      box-shadow: none;
+    }
+    .ai-preview-tab.active {
+      background: var(--primary-soft);
+      color: var(--primary-strong);
+      border-color: var(--primary-border);
+    }
+  .ai-panel.ai-training-panel.active { display: block; }
+    .ai-training-intro {
+      font-size: 0.84rem;
+      color: var(--muted);
+      line-height: 1.55;
+      margin-bottom: 1rem;
+      max-width: 52rem;
+    }
+    .ai-training-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 260px;
+      gap: 0.85rem;
+      align-items: stretch;
+    }
+    .ai-training-main {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+    }
+    .ai-training-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem 0.9rem;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(180deg, var(--surface-soft) 0%, var(--surface) 100%);
+    }
+    .ai-training-modes {
+      display: flex;
+      gap: 0.25rem;
+      background: var(--surface-soft);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 3px;
+    }
+    .ai-training-mode-btn {
+      font: inherit;
+      cursor: pointer;
+      border: none;
+      border-radius: 8px;
+      padding: 0.38rem 0.85rem;
+      background: transparent;
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 600;
+      box-shadow: none;
+    }
+    .ai-training-mode-btn.active {
+      background: var(--surface);
+      color: var(--primary-strong);
+      box-shadow: var(--shadow-sm);
+    }
+    .ai-training-toolbar-actions {
+      display: flex;
+      gap: 0.45rem;
+      margin-inline-start: auto;
+      flex-wrap: wrap;
+    }
+    .ai-training-toolbar-actions button {
+      font-size: 0.8rem;
+      padding: 0.45rem 0.85rem;
+      border-radius: 10px;
+    }
+    .ai-training-chat {
+      flex: 1;
+      min-height: 280px;
+      max-height: 420px;
+      overflow-y: auto;
+      padding: 1rem 1.1rem;
+      background: #eef1f8;
+    }
+    .ai-training-empty {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.86rem;
+      padding: 2.5rem 1rem;
+    }
+    .ai-training-compose {
+      display: flex;
+      gap: 0.5rem;
+      padding: 0.7rem 0.9rem;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .ai-training-compose input {
+      flex: 1;
+      border: 1px solid var(--border-strong);
+      border-radius: 11px;
+      padding: 0.55rem 0.8rem;
+      font: inherit;
+      font-size: 0.86rem;
+      background: var(--surface);
+      outline: none;
+    }
+    .ai-training-compose input:focus {
+      border-color: var(--primary-border);
+      box-shadow: 0 0 0 3px rgba(69, 105, 240, 0.1);
+    }
+    .ai-training-compose button {
+      font-size: 0.82rem;
+      padding: 0.5rem 1rem;
+      border-radius: 11px;
+      flex-shrink: 0;
+    }
+    .ai-training-feedback-row {
+      display: flex;
+      gap: 0.5rem;
+      padding: 0.65rem 0.9rem;
+      border-top: 1px solid var(--border);
+      background: #fafbfd;
+    }
+    .ai-training-feedback-row textarea {
+      flex: 1;
+      min-height: 52px;
+      max-height: 100px;
+      border: 1px solid var(--border-strong);
+      border-radius: 11px;
+      padding: 0.5rem 0.75rem;
+      font: inherit;
+      font-size: 0.82rem;
+      resize: vertical;
+      outline: none;
+      background: var(--surface);
+    }
+    .ai-training-feedback-row textarea:focus {
+      border-color: var(--primary-border);
+      box-shadow: 0 0 0 3px rgba(69, 105, 240, 0.08);
+    }
+    .ai-training-feedback-row button {
+      font-size: 0.78rem;
+      padding: 0.45rem 0.8rem;
+      border-radius: 10px;
+      align-self: flex-end;
+      white-space: nowrap;
+    }
+    .ai-training-notes {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-sm);
+      padding: 0.85rem 0.9rem;
+      display: flex;
+      flex-direction: column;
+      min-height: 280px;
+      max-height: 620px;
+    }
+    .ai-training-notes h4 {
+      font-size: 0.82rem;
+      font-weight: 700;
+      margin-bottom: 0.15rem;
+    }
+    .ai-training-notes .hint {
+      font-size: 0.72rem;
+      color: var(--faint);
+      margin-bottom: 0.65rem;
+      line-height: 1.4;
+    }
+    .ai-training-notes-list {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+      min-height: 0;
+    }
+    .ai-training-note-item {
+      padding: 0.55rem 0.65rem;
+      border-radius: 10px;
+      background: var(--surface-soft);
+      border: 1px solid var(--border);
+      font-size: 0.78rem;
+      line-height: 1.45;
+      color: var(--text);
+    }
+    .ai-training-note-item .note-time {
+      font-size: 0.68rem;
+      color: var(--faint);
+      margin-top: 0.25rem;
+    }
+    .ai-training-notes-empty {
+      font-size: 0.78rem;
+      color: var(--faint);
+      text-align: center;
+      padding: 1.5rem 0.5rem;
+    }
+    .ai-training-summary {
+      margin-top: 1rem;
+      background: var(--surface);
+      border: 1px solid var(--primary-border);
+      border-radius: var(--radius-lg);
+      padding: 1rem 1.15rem;
+      box-shadow: var(--shadow-md);
+    }
+    .ai-training-summary.hidden { display: none; }
+    .ai-training-summary h3 {
+      font-size: 0.95rem;
+      font-weight: 800;
+      margin-bottom: 0.65rem;
+    }
+    .ai-training-summary-text {
+      font-size: 0.84rem;
+      color: var(--muted);
+      line-height: 1.55;
+      margin-bottom: 0.75rem;
+    }
+    .ai-training-highlights {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      margin-bottom: 0.85rem;
+    }
+    .ai-training-highlight {
+      font-size: 0.78rem;
+      padding: 0.45rem 0.65rem;
+      border-radius: 9px;
+      background: var(--primary-soft);
+      border: 1px solid var(--primary-border);
+      color: var(--primary-strong);
+      font-weight: 500;
+    }
+    .ai-training-summary label {
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 700;
+      margin-bottom: 0.4rem;
+    }
+    #aiTrainingRevisedPrompt {
+      width: 100%;
+      min-height: 220px;
+      font-family: "Cascadia Code", "Consolas", "Heebo", monospace;
+      font-size: 0.82rem;
+      line-height: 1.55;
+      padding: 0.85rem 1rem;
+      border-radius: 12px;
+      border: 1px solid var(--border-strong);
+      background: #151c2e;
+      color: #e8edf8;
+      resize: vertical;
+      outline: none;
+      margin-bottom: 0.75rem;
+    }
+    .ai-training-summary-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    .ai-training-summary-actions button {
+      font-size: 0.82rem;
+      padding: 0.5rem 1rem;
+      border-radius: 11px;
+    }
+    .ai-training-thinking {
+      font-size: 0.78rem;
+      color: var(--faint);
+      padding: 0.35rem 0;
+    }
+    .bubble-row.trainer_note {
+      justify-content: center;
+      margin: 0.35rem 0;
+    }
+    .bubble-row.trainer_note .bubble {
+      background: #fef9c3;
+      border: 1px solid #fde047;
+      color: #854d0e;
+      max-width: 92%;
+      font-weight: 500;
+    }
+    .bubble-row.trainer_note .bubble-meta {
+      text-align: center;
+      color: #a16207;
+      font-weight: 600;
+    }
+    .bubble-row.bot.ack .bubble {
+      background: #e0f2fe;
+      border: 1px solid #7dd3fc;
+      color: #0c4a6e;
+      max-width: 92%;
+    }
+    .bubble-row.bot.ack .bubble-meta {
+      color: #0369a1;
+      font-weight: 600;
+    }
+    .bubble-row.bot.revised .bubble {
+      background: #dcfce7;
+      border: 1px solid #86efac;
+      color: #166534;
+      max-width: 92%;
+      font-weight: 500;
+    }
+    .bubble-row.bot.revised .bubble-meta {
+      color: #15803d;
+      font-weight: 600;
+    }
+    .ai-training-note-item .note-related {
+      font-size: 0.68rem;
+      color: var(--faint);
+      margin-top: 0.35rem;
+      line-height: 1.35;
+      border-top: 1px dashed var(--border);
+      padding-top: 0.35rem;
+    }
+    .ai-save-status {
+      font-size: 0.82rem;
+      color: var(--muted);
+      margin-top: 0.75rem;
       min-height: 1.2rem;
-      color: #dc2626;
-      font-size: 0.85rem;
     }
-    .topbar-spacer { flex: 1; }
-    #logoutBtn { margin-inline-start: 0; }
-    #appShell { display: none; flex-direction: column; height: 100vh; }
+    .ai-save-status.ok { color: var(--success); font-weight: 600; }
+
+    #appShell {
+      display: none;
+      flex-direction: row;
+      direction: rtl;
+      height: 100vh;
+      overflow: hidden;
+    }
     #appShell.visible { display: flex; }
+
+    @media (max-width: 900px) {
+      :root { --nav-width: 76px; }
+      .nav-sidebar { padding: 1rem 0.55rem; box-shadow: -6px 0 24px rgba(15, 20, 35, 0.16); }
+      .home-stats-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .home-dashboard-grid { grid-template-columns: 1fr; }
+      .home-panel.span-5,
+      .home-panel.span-6,
+      .home-panel.span-7,
+      .home-panel.span-12 { grid-column: span 1; }
+      .home-hero { margin-bottom: 1.1rem; }
+      .home-hero-actions { width: 100%; }
+      .nav-brand {
+        justify-content: center;
+        padding-bottom: 1rem;
+      }
+      .nav-brand-logo { max-width: 40px; }
+      .nav-label { display: none; }
+      .nav-sidebar .tab-btn {
+        justify-content: center;
+        padding: 0.55rem;
+        gap: 0;
+      }
+      .nav-item-text { display: none; }
+      .nav-sidebar .logout-btn span { display: none; }
+      .nav-sidebar .logout-btn {
+        justify-content: center;
+        padding: 0.55rem;
+      }
+      .layout { grid-template-columns: 1fr; }
+      .main { display: none; }
+      .leads-control-bar { flex-direction: column; align-items: stretch; }
+      .leads-control-actions { flex-direction: column; align-items: stretch; }
+      .leads-search { max-width: none; width: 100%; }
+      .leads-actions-group { width: 100%; }
+      .leads-actions-group button { flex: 1; justify-content: center; }
+      .leads-settings-body { grid-template-columns: 1fr; }
+      .leads-filter-bar { align-items: flex-start; flex-direction: column; gap: 0.5rem; }
+      .ai-training-layout { grid-template-columns: 1fr; }
+      .ai-training-notes { max-height: none; }
+    }
   </style>
 </head>
 <body>
   <div class="auth-gate" id="authGate">
     <form class="auth-card" id="loginForm">
-      <h1>Tori</h1>
+      <div class="auth-brand">
+        <span class="brand-logo">T</span>
+        <h1>Tori</h1>
+      </div>
       <p>דשבורד ניהול — התחברות למורשים בלבד</p>
       <input id="loginEmail" type="email" required autocomplete="email" placeholder="אימייל" dir="ltr" />
       <input id="loginPassword" type="password" required autocomplete="current-password" placeholder="סיסמה" dir="ltr" />
@@ -914,32 +2457,316 @@
   </div>
 
   <div id="appShell">
-  <div class="topbar">
-    <span class="brand">Tori</span>
-    <button type="button" class="tab-btn active" data-tab="conversations" id="tabConversations">שיחות</button>
-    <button type="button" class="tab-btn" data-tab="leads" id="tabLeads">לידים</button>
-    <span class="topbar-spacer"></span>
-    <button type="button" class="tab-btn" id="logoutBtn">יציאה</button>
-  </div>
+  <aside class="nav-sidebar" aria-label="ניווט ראשי">
+    <div class="nav-brand">
+      <img class="nav-brand-logo" src="/assets/tori-logo.png" alt="Tori" />
+    </div>
+    <nav class="nav-menu">
+      <span class="nav-label">תפריט</span>
+      <button type="button" class="tab-btn active" data-tab="home" id="tabHome">
+        <span class="nav-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        </span>
+        <span class="nav-item-text">דשבורד</span>
+      </button>
+      <button type="button" class="tab-btn" data-tab="conversations" id="tabConversations">
+        <span class="nav-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        </span>
+        <span class="nav-item-text">שיחות</span>
+      </button>
+      <button type="button" class="tab-btn" data-tab="leads" id="tabLeads">
+        <span class="nav-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </span>
+        <span class="nav-item-text">לידים</span>
+      </button>
+      <button type="button" class="tab-btn" data-tab="ai-agent" id="tabAiAgent">
+        <span class="nav-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1H2a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7h1V5.73c-.6-.34-1-.99-1-1.73a2 2 0 0 1 2-2z"/><circle cx="8" cy="14" r="1"/><circle cx="16" cy="14" r="1"/></svg>
+        </span>
+        <span class="nav-item-text">נציג AI</span>
+      </button>
+    </nav>
+    <div class="nav-footer">
+      <button type="button" class="logout-btn" id="logoutBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        <span>יציאה</span>
+      </button>
+    </div>
+  </aside>
 
-  <section class="view active" id="viewConversations">
+  <div class="app-main">
+  <section class="view home-view active" id="viewHome">
+    <div class="home-scroll">
+      <header class="home-hero">
+        <div class="home-hero-text">
+          <span class="home-hero-badge">מעודכן בזמן אמת</span>
+          <h1>סקירה כללית</h1>
+          <p>מידע מרוכז על שיחות, לידים ופעילות — כל מה שחשוב במקום אחד.</p>
+        </div>
+        <div class="home-hero-actions">
+          <button type="button" class="primary" id="homeGoConversations">שיחות</button>
+          <button type="button" class="secondary" id="homeGoLeads">לידים</button>
+        </div>
+      </header>
+      <section class="home-section">
+        <h2 class="home-section-title">שיחות</h2>
+        <div class="home-stats-row" id="homeConvStats"></div>
+      </section>
+      <section class="home-section">
+        <h2 class="home-section-title">לידים</h2>
+        <div class="home-stats-row" id="homeLeadStats"></div>
+      </section>
+      <div class="home-dashboard-grid">
+        <div class="home-panel span-7" id="homeNeedsHumanPanel">
+          <div class="home-panel-head">
+            <div class="home-panel-head-left">
+              <span class="home-panel-icon alert" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              </span>
+              <h3>דרוש מענה ידני</h3>
+            </div>
+          </div>
+          <div class="home-panel-body">
+            <div class="home-list" id="homeNeedsHuman"></div>
+          </div>
+        </div>
+        <div class="home-panel span-5">
+          <div class="home-panel-head">
+            <div class="home-panel-head-left">
+              <span class="home-panel-icon muted" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+              </span>
+              <h3>לידים לפי סטטוס</h3>
+            </div>
+          </div>
+          <div class="home-panel-body">
+            <div class="home-status-bars" id="homeLeadBars"></div>
+          </div>
+        </div>
+        <div class="home-panel span-6">
+          <div class="home-panel-head">
+            <div class="home-panel-head-left">
+              <span class="home-panel-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+              </span>
+              <h3>שיחות אחרונות</h3>
+            </div>
+            <button type="button" class="home-panel-link" id="homeLinkConversations">הכל</button>
+          </div>
+          <div class="home-panel-body">
+            <div class="home-list" id="homeRecentConvs"></div>
+          </div>
+        </div>
+        <div class="home-panel span-6">
+          <div class="home-panel-head">
+            <div class="home-panel-head-left">
+              <span class="home-panel-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              </span>
+              <h3>לידים חדשים</h3>
+            </div>
+            <button type="button" class="home-panel-link" id="homeLinkLeads">הכל</button>
+          </div>
+          <div class="home-panel-body">
+            <div class="home-list" id="homeRecentLeads"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="view ai-agent-view" id="viewAiAgent">
+    <div class="ai-scroll">
+      <header class="ai-header">
+        <div>
+          <h1>נציג AI</h1>
+          <p>הגדר מענה שונה להודעות נכנסות (מדף נחיתה) ולהודעות יוצאות (לידים)</p>
+        </div>
+        <div class="ai-header-actions">
+          <button type="button" class="secondary" id="aiAgentReset">איפוס לברירת מחדל</button>
+          <button type="button" id="aiAgentSave">שמירה</button>
+        </div>
+      </header>
+      <div class="ai-agent-meta">
+        <label for="aiAgentName">שם הנציג</label>
+        <input id="aiAgentName" type="text" placeholder="לדוגמה: אליה" />
+      </div>
+      <div class="ai-segments" id="aiSegments">
+        <button type="button" class="ai-segment-btn active" data-ai-segment="shared">בסיס ידע משותף</button>
+        <button type="button" class="ai-segment-btn" data-ai-segment="inbound">הודעות נכנסות</button>
+        <button type="button" class="ai-segment-btn" data-ai-segment="outbound">הודעות יוצאות</button>
+        <button type="button" class="ai-segment-btn" data-ai-segment="preview">תצוגת פרומפט</button>
+        <button type="button" class="ai-segment-btn" data-ai-segment="training">אימון אינטראקטיבי</button>
+      </div>
+      <div class="ai-panel active" id="aiPanelShared" data-ai-panel="shared">
+        <div class="ai-field">
+          <label for="aiKnowledgeBase">בסיס הידע — מה הנציג יכול לספר ללקוחות</label>
+          <p class="hint">מידע על Tori, מחירים, פיצ'רים. הנציג משתמש רק במה שכתוב כאן.</p>
+          <textarea id="aiKnowledgeBase" class="tall" rows="14"></textarea>
+        </div>
+        <div class="ai-field">
+          <label for="aiWhatsappStyle">סגנון וואטסאפ (משותף לכל סוגי המענה)</label>
+          <p class="hint">חוקי אורך, טון קצר, דוגמאות — חל על נכנסות ויוצאות.</p>
+          <textarea id="aiWhatsappStyle" rows="8"></textarea>
+        </div>
+      </div>
+      <div class="ai-panel" id="aiPanelInbound" data-ai-panel="inbound">
+        <div class="ai-field">
+          <label for="aiInboundIntro">מי הנציג ומה הקשר</label>
+          <p class="hint">לקוח השאיר פרטים בדף נחיתה — שיחה נכנסת.</p>
+          <textarea id="aiInboundIntro" rows="4"></textarea>
+        </div>
+        <div class="ai-field">
+          <label for="aiInboundGoals">מטרות השיחה</label>
+          <textarea id="aiInboundGoals" rows="5"></textarea>
+        </div>
+        <div class="ai-field">
+          <label for="aiInboundFlow">זרימת שיחה</label>
+          <textarea id="aiInboundFlow" rows="6"></textarea>
+        </div>
+        <div class="ai-field">
+          <label for="aiInboundTone">סגנון דיבור וטון</label>
+          <textarea id="aiInboundTone" rows="6"></textarea>
+        </div>
+        <div class="ai-field">
+          <label for="aiInboundSales">שיטת מכירה</label>
+          <textarea id="aiInboundSales" rows="5"></textarea>
+        </div>
+        <div class="ai-field">
+          <label for="aiInboundOpening">הודעת פתיחה (תבנית)</label>
+          <p class="hint">משתנים: {greeting} — ברכה עם שם, {name} — שם פרטי.</p>
+          <textarea id="aiInboundOpening" rows="3"></textarea>
+        </div>
+      </div>
+      <div class="ai-panel" id="aiPanelOutbound" data-ai-panel="outbound">
+        <div class="ai-field">
+          <label for="aiOutboundIntro">מי הנציג ומה הקשר</label>
+          <p class="hint">שיחה יזומה ללידים (ייצוא / Excel).</p>
+          <textarea id="aiOutboundIntro" rows="5"></textarea>
+        </div>
+        <div class="ai-field">
+          <label for="aiOutboundGoals">מטרות השיחה</label>
+          <textarea id="aiOutboundGoals" rows="6"></textarea>
+        </div>
+        <div class="ai-field">
+          <label for="aiOutboundFlow">זרימת שיחה</label>
+          <textarea id="aiOutboundFlow" rows="6"></textarea>
+        </div>
+        <div class="ai-field">
+          <label for="aiOutboundTone">סגנון דיבור וטון</label>
+          <textarea id="aiOutboundTone" rows="5"></textarea>
+        </div>
+        <div class="ai-field">
+          <label for="aiOutboundSales">שיטת מכירה</label>
+          <textarea id="aiOutboundSales" rows="5"></textarea>
+        </div>
+        <div class="ai-field">
+          <label for="aiOutboundRules">חוקי ברזל</label>
+          <textarea id="aiOutboundRules" rows="6"></textarea>
+        </div>
+        <div class="ai-field">
+          <label for="aiOutboundFirst">הודעה ראשונה לליד (תבנית)</label>
+          <p class="hint">משתנים: {name}, {greeting}.</p>
+          <textarea id="aiOutboundFirst" rows="3"></textarea>
+        </div>
+      </div>
+      <div class="ai-panel ai-preview-panel" id="aiPanelPreview" data-ai-panel="preview">
+        <p class="hint">ערוך כאן את הפרומפט המלא — מה שתשמור כאן יישמש ישירות לנציג AI (עוקף את השדות בטאבים האחרים). לחץ «שמירה» למעלה.</p>
+        <div class="ai-preview-tabs">
+          <button type="button" class="ai-preview-tab active" data-ai-preview="inbound">נכנסות</button>
+          <button type="button" class="ai-preview-tab" data-ai-preview="outbound">יוצאות</button>
+          <span class="ai-preview-badge hidden" id="aiPreviewOverrideBadge">עריכה ישירה פעילה</span>
+        </div>
+        <textarea id="aiPreviewText" dir="rtl" spellcheck="false"></textarea>
+      </div>
+      <div class="ai-panel ai-training-panel" id="aiPanelTraining" data-ai-panel="training">
+        <p class="ai-training-intro">
+          שחק את הלקוח בשיחה עם הנציג AI. להערה על הודעה ספציפית — כתוב בשדה הלקוח:
+          <strong>*הערה כאן*</strong> (כוכבית בהתחלה ובסוף). המערכת תאשר שהבינה ולא תמשיך את השיחה.
+          אפשר גם הערות כלליות בשדה למטה. בסיום — סיכום ועדכון פרומפט.
+        </p>
+        <div class="ai-training-layout">
+          <div class="ai-training-main">
+            <div class="ai-training-toolbar">
+              <div class="ai-training-modes">
+                <button type="button" class="ai-training-mode-btn active" data-training-mode="outbound">סימולציה יוצאות</button>
+                <button type="button" class="ai-training-mode-btn" data-training-mode="inbound">סימולציה נכנסות</button>
+              </div>
+              <div class="ai-training-toolbar-actions">
+                <button type="button" class="secondary" id="aiTrainingStart">התחל אימון</button>
+                <button type="button" id="aiTrainingSummarize" disabled>סיים וסכם</button>
+              </div>
+            </div>
+            <div class="ai-training-chat" id="aiTrainingChat">
+              <div class="ai-training-empty">בחר סוג אימון ולחץ «התחל אימון» כדי לפתוח שיחה</div>
+            </div>
+            <div class="ai-training-compose">
+              <input type="text" id="aiTrainingCustomerInput" placeholder="תשובה כלקוח… או *הערה על ההודעה האחרונה*" disabled autocomplete="off" />
+              <button type="button" id="aiTrainingSend" disabled>שלח</button>
+            </div>
+            <div class="ai-training-feedback-row">
+              <textarea id="aiTrainingFeedbackInput" placeholder="הערה: מה לשנות? איך הנציג צריך להגיב? (לא חייב להיות אחרי הודעה ספציפית)" disabled></textarea>
+              <button type="button" class="secondary" id="aiTrainingAddFeedback" disabled>הוסף הערה</button>
+            </div>
+          </div>
+          <aside class="ai-training-notes">
+            <h4>הערות באימון</h4>
+            <p class="hint">הערות עם *...* בשיחה מסומנות כהערה על הודעת הנציג</p>
+            <div class="ai-training-notes-list" id="aiTrainingNotesList">
+              <div class="ai-training-notes-empty">אין הערות עדיין</div>
+            </div>
+          </aside>
+        </div>
+        <div class="ai-training-summary hidden" id="aiTrainingSummaryPanel">
+          <h3>סיכום האימון ושינויים מוצעים</h3>
+          <div class="ai-training-summary-text" id="aiTrainingSummaryText"></div>
+          <div class="ai-training-highlights" id="aiTrainingHighlights"></div>
+          <label for="aiTrainingRevisedPrompt">פרומפט מעודכן (ניתן לעריכה לפני אישור)</label>
+          <textarea id="aiTrainingRevisedPrompt" dir="rtl" spellcheck="false"></textarea>
+          <div class="ai-training-summary-actions">
+            <button type="button" id="aiTrainingApprove">אשר ועדכן פרומפט</button>
+            <button type="button" class="secondary" id="aiTrainingDiscard">בטל וסגור</button>
+          </div>
+        </div>
+      </div>
+      <p class="ai-save-status" id="aiSaveStatus" aria-live="polite"></p>
+    </div>
+  </section>
+
+  <section class="view" id="viewConversations">
     <div class="layout">
       <aside class="sidebar">
         <div class="sidebar-header">
-          <h1>שיחות WhatsApp</h1>
-          <p class="sub">שיחות כל 5 שנ׳ · הודעות בצ׳אט כל 2 שנ׳</p>
+          <div class="titles">
+            <h1>שיחות WhatsApp</h1>
+            <span class="sub">עדכון אוטומטי</span>
+          </div>
+          <div class="search-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="search" id="convSearchInput" placeholder="חיפוש לפי שם או טלפון…" autocomplete="off" />
+          </div>
         </div>
         <div class="conv-list" id="convList"></div>
       </aside>
       <main class="main">
         <div class="main-header" id="mainHeader" style="display:none">
           <div class="title">
-            <h2 id="detailName">—</h2>
-            <div class="meta" id="detailPhone"></div>
+            <span class="avatar h0" id="detailAvatar">?</span>
+            <div>
+              <h2 id="detailName">—</h2>
+              <div class="meta" id="detailPhone"></div>
+            </div>
           </div>
           <div class="toolbar" id="toolbar"></div>
         </div>
-        <div class="empty-state" id="emptyState">בחר שיחה מהרשימה</div>
+        <div class="empty-state" id="emptyState">
+          <span class="empty-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+          </span>
+          בחר שיחה מהרשימה כדי להתחיל
+        </div>
         <div class="messages-wrap" id="messagesWrap" style="display:none"></div>
         <div class="composer" id="composer">
           <div class="composer-inner">
@@ -952,30 +2779,76 @@
   </section>
 
   <section class="view leads-view" id="viewLeads">
-    <div class="leads-toolbar">
-      <h2 id="leadsSectionTitle">לידים יוצאים</h2>
-      <span class="leads-count" id="leadsCount">—</span>
-      <div class="leads-segments">
-        <button type="button" class="leads-segment-btn active" data-leads-segment="outbound" id="leadsSegmentOutbound">פניות יוצאות</button>
-        <button type="button" class="leads-segment-btn" data-leads-segment="inbound" id="leadsSegmentInbound">פניות נכנסות</button>
+    <div class="leads-scroll">
+      <header class="leads-hero">
+        <div class="leads-hero-text">
+          <div class="leads-hero-title-row">
+            <h1 id="leadsSectionTitle">לידים יוצאים</h1>
+            <span class="leads-count" id="leadsCount">—</span>
+          </div>
+          <p id="leadsSectionSubtitle">ייבוא Excel, הוספת לידים ושליחה אוטומטית ללידים יוצאים</p>
+        </div>
+      </header>
+      <div class="leads-control-bar">
+        <div class="leads-segments">
+          <button type="button" class="leads-segment-btn active" data-leads-segment="outbound" id="leadsSegmentOutbound">פניות יוצאות</button>
+          <button type="button" class="leads-segment-btn" data-leads-segment="inbound" id="leadsSegmentInbound">פניות נכנסות</button>
+        </div>
+        <div class="leads-control-actions">
+          <div class="search-box leads-search">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="search" id="leadsSearchInput" placeholder="חיפוש לפי שם, עסק או טלפון…" autocomplete="off" />
+          </div>
+          <div class="leads-actions-group" id="leadsOutboundActions">
+            <button type="button" class="secondary" id="leadsAddBtn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              הוספת ליד
+            </button>
+            <input type="file" id="leadsImportInput" accept=".xlsx,.xls" />
+            <button type="button" id="leadsImportBtn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              ייבוא Excel
+            </button>
+          </div>
+        </div>
       </div>
-      <div class="leads-toolbar-actions" id="leadsOutboundActions">
-        <button type="button" class="secondary" id="leadsAddBtn">+ הוספת ליד</button>
-        <label class="leads-import-label" title="שלח הודעת פתיחה בוואטסאפ לכל ליד חדש">
-          <input type="checkbox" id="leadsSendOpening" />
-          שלח הודעת פתיחה
-        </label>
-        <label class="leads-import-label" title="שעה אחת בין 10:00–16:00, הודעה אחת לליד בסטטוס לא נוצר קשר">
-          <input type="checkbox" id="hourlyNoContactToggle" />
-          שליחה שעתית ללא קשר (10–16)
-        </label>
-        <input type="file" id="leadsImportInput" accept=".xlsx,.xls" />
-        <button type="button" id="leadsImportBtn">ייבוא Excel</button>
+      <div class="leads-settings-panel" id="leadsOutboundSettings">
+        <div class="leads-settings-head">
+          <span class="leads-settings-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          </span>
+          <div>
+            <strong>אוטומציה ושליחה</strong>
+            <span>הגדרות לייבוא ושליחה אוטומטית של הודעות</span>
+          </div>
+        </div>
+        <div class="leads-settings-body">
+          <label class="leads-setting-item" title="שלח הודעת פתיחה בוואטסאפ לכל ליד חדש מייבוא">
+            <div class="leads-setting-text">
+              <span class="leads-setting-title">הודעת פתיחה בייבוא</span>
+              <span class="leads-setting-desc">שליחה אוטומטית לכל ליד חדש מקובץ Excel</span>
+            </div>
+            <input type="checkbox" class="leads-toggle" id="leadsSendOpening" />
+          </label>
+          <label class="leads-setting-item" title="שעה אחת בין 10:00–16:00, הודעה אחת לליד בסטטוס לא נוצר קשר">
+            <div class="leads-setting-text">
+              <span class="leads-setting-title">שליחה שעתית (10–16)</span>
+              <span class="leads-setting-desc">הודעה אחת ללידים בסטטוס "לא נוצר קשר"</span>
+            </div>
+            <input type="checkbox" class="leads-toggle" id="hourlyNoContactToggle" />
+          </label>
+        </div>
         <span class="import-status" id="importStatus"></span>
       </div>
-    </div>
-    <div class="leads-table-wrap" id="leadsTableWrap">
-      <div class="leads-empty" id="leadsLoading">טוען לידים…</div>
+      <div class="leads-filter-bar">
+        <span class="leads-filter-label">סינון</span>
+        <div class="leads-filter-scroll">
+          <div class="leads-stats" id="leadsStats"></div>
+        </div>
+      </div>
+      <div class="leads-table-wrap" id="leadsTableWrap">
+        <div class="leads-empty" id="leadsLoading">טוען לידים…</div>
+      </div>
     </div>
   </section>
 
@@ -1005,6 +2878,7 @@
 
   <div class="err-toast" id="errToast"></div>
   </div>
+  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="/config.js"></script>
@@ -1018,7 +2892,7 @@
     let conversationsCache = [];
     let agentSendInFlight = false;
     let lastToolbarStatus = null;
-    let activeTab = "conversations";
+    let activeTab = "home";
     let activeLeadsSegment = "outbound";
     let leadsCache = [];
     let leadStatusUpdateInFlight = new Set();
@@ -1029,6 +2903,9 @@
     let supabaseClient = null;
     let authSession = null;
     let dashboardBootstrapped = false;
+    let convSearchQuery = "";
+    let leadsSearchQuery = "";
+    let leadsStatusFilter = null;
 
     const LEAD_ICON_EDIT =
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 1 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>';
@@ -1061,7 +2938,7 @@
       return FIRST_MESSAGE_ALLOWED_SOURCES.has(lead?.source || "");
     }
 
-    function getFilteredLeads() {
+    function getSegmentLeads() {
       return leadsCache.filter((lead) =>
         activeLeadsSegment === "outbound"
           ? isOutboundLead(lead)
@@ -1069,14 +2946,39 @@
       );
     }
 
+    function getFilteredLeads() {
+      let leads = getSegmentLeads();
+      if (leadsStatusFilter) {
+        leads = leads.filter(
+          (l) => (l.status || "no_contact") === leadsStatusFilter
+        );
+      }
+      const q = leadsSearchQuery.trim().toLowerCase();
+      if (q) {
+        leads = leads.filter((l) =>
+          [l.name, l.business, l.message_name, l.phone, l.business_type]
+            .some((v) => String(v || "").toLowerCase().includes(q))
+        );
+      }
+      return leads;
+    }
+
     function updateLeadsSegmentUi() {
       const isOutbound = activeLeadsSegment === "outbound";
       document
         .getElementById("leadsSectionTitle")
         .textContent = isOutbound ? "לידים יוצאים" : "לידים נכנסים";
+      const sub = document.getElementById("leadsSectionSubtitle");
+      if (sub) {
+        sub.textContent = isOutbound
+          ? "ייבוא Excel, הוספת לידים ושליחה אוטומטית ללידים יוצאים"
+          : "לידים שהגיעו מטופס האתר ופניות נכנסות";
+      }
       document.getElementById("leadsOutboundActions").style.display = isOutbound
         ? "flex"
         : "none";
+      const settingsPanel = document.getElementById("leadsOutboundSettings");
+      if (settingsPanel) settingsPanel.style.display = isOutbound ? "" : "none";
       document.querySelectorAll(".leads-segment-btn").forEach((btn) => {
         btn.classList.toggle(
           "active",
@@ -1088,6 +2990,7 @@
     function switchLeadsSegment(segment) {
       if (segment !== "outbound" && segment !== "inbound") return;
       activeLeadsSegment = segment;
+      leadsStatusFilter = null;
       updateLeadsSegmentUi();
       renderLeads();
     }
@@ -1110,6 +3013,15 @@
       return t ? t.charAt(0).toUpperCase() : "?";
     }
 
+    function avatarHueClass(name) {
+      const s = String(name || "");
+      let h = 0;
+      for (let i = 0; i < s.length; i++) {
+        h = (h * 31 + s.charCodeAt(i)) >>> 0;
+      }
+      return "h" + (h % 8);
+    }
+
     function leadStatusSelectHtml(lead) {
       const status = lead.status || "no_contact";
       const opts = LEAD_STATUS_OPTIONS.map(
@@ -1122,10 +3034,10 @@
     function statusBadge(status) {
       const s = status || "bot";
       const map = {
-        bot: { cls: "bot", label: "🤖 Bot" },
-        human: { cls: "human", label: "👤 Human" },
-        needs_human: { cls: "needs_human", label: "🚨 הבוט לא ידע לענות" },
-        closed: { cls: "closed", label: "✅ Closed" },
+        bot: { cls: "bot", label: "בוט פעיל" },
+        human: { cls: "human", label: "נציג אנושי" },
+        needs_human: { cls: "needs_human", label: "דרוש מענה ידני" },
+        closed: { cls: "closed", label: "נסגר" },
       };
       const x = map[s] || map.bot;
       return `<span class="badge ${x.cls}">${x.label}</span>`;
@@ -1139,6 +3051,37 @@
         month: "2-digit",
         hour: "2-digit",
         minute: "2-digit",
+      });
+    }
+
+    function formatListTime(iso) {
+      if (!iso) return "";
+      const d = new Date(iso);
+      if (isNaN(d.getTime())) return "";
+      const now = new Date();
+      const sameDay = d.toDateString() === now.toDateString();
+      if (sameDay) {
+        return d.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" });
+      }
+      const yesterday = new Date(now);
+      yesterday.setDate(now.getDate() - 1);
+      if (d.toDateString() === yesterday.toDateString()) return "אתמול";
+      return d.toLocaleDateString("he-IL", { day: "2-digit", month: "2-digit" });
+    }
+
+    function formatDayLabel(iso) {
+      const d = new Date(iso);
+      if (isNaN(d.getTime())) return "";
+      const now = new Date();
+      if (d.toDateString() === now.toDateString()) return "היום";
+      const yesterday = new Date(now);
+      yesterday.setDate(now.getDate() - 1);
+      if (d.toDateString() === yesterday.toDateString()) return "אתמול";
+      return d.toLocaleDateString("he-IL", {
+        weekday: "long",
+        day: "2-digit",
+        month: "2-digit",
+        year: d.getFullYear() === now.getFullYear() ? undefined : "numeric",
       });
     }
 
@@ -1261,9 +3204,29 @@
       showLoginScreen();
     });
 
+    const TRASH_SVG =
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>';
+
+    function getFilteredConversations() {
+      const q = convSearchQuery.trim().toLowerCase();
+      if (!q) return conversationsCache;
+      return conversationsCache.filter((c) =>
+        [c.name, c.phone].some((v) => String(v || "").toLowerCase().includes(q))
+      );
+    }
+
     function renderConvList() {
       const list = document.getElementById("convList");
-      list.innerHTML = conversationsCache
+      const conversations = getFilteredConversations();
+
+      if (!conversations.length) {
+        list.innerHTML = `<div style="padding:2.5rem 1rem;text-align:center;color:var(--faint);font-size:0.86rem;">${
+          convSearchQuery.trim() ? "לא נמצאו שיחות תואמות" : "אין שיחות עדיין"
+        }</div>`;
+        return;
+      }
+
+      list.innerHTML = conversations
         .map((c) => {
           const active = c.phone === selectedPhone ? "active" : "";
           const nm = (c.name && c.name.trim()) || "ללא שם";
@@ -1273,16 +3236,20 @@
           const phoneAttr = encodeURIComponent(c.phone);
           return `
             <div class="conv-item ${active}" data-phone="${phoneAttr}">
-              <div class="row1">
-                <span class="name">${escapeHtml(nm)}</span>
-                <div class="actions">
-                  ${c.proactive ? '<span class="badge proactive">שיחה יזומה</span>' : ""}
+              <span class="avatar ${avatarHueClass(nm)}">${escapeHtml(leadInitial(nm))}</span>
+              <div class="conv-body">
+                <div class="row1">
+                  <span class="name">${escapeHtml(nm)}</span>
+                  <span class="time">${formatListTime(c.last_message_at)}</span>
+                </div>
+                <div class="phone">${escapeHtml(c.phone)}</div>
+                <div class="${previewCls}">${escapeHtml(prev)}</div>
+                <div class="row2">
                   ${statusBadge(c.status)}
-                  <button type="button" class="conv-delete" data-delete="${phoneAttr}" title="מחק שיחה">מחק</button>
+                  ${c.proactive ? '<span class="badge proactive">שיחה יזומה</span>' : ""}
+                  <button type="button" class="conv-delete" data-delete="${phoneAttr}" title="מחק שיחה" aria-label="מחק שיחה">${TRASH_SVG}</button>
                 </div>
               </div>
-              <div class="phone">${escapeHtml(c.phone)}</div>
-              <div class="${previewCls}">${escapeHtml(prev)}</div>
             </div>`;
         })
         .join("");
@@ -1303,6 +3270,11 @@
         });
       });
     }
+
+    document.getElementById("convSearchInput").addEventListener("input", (e) => {
+      convSearchQuery = e.target.value || "";
+      renderConvList();
+    });
 
     async function deleteConversationFlow(phone) {
       const c = conversationsCache.find((x) => x.phone === phone);
@@ -1349,17 +3321,26 @@
           selectedPhone = null;
         }
         if (selectedPhone) refreshDetailHeaderOnly();
+        if (activeTab === "home") renderHomeDashboard();
       } catch (e) {
         showError(e.message || String(e));
       }
     }
 
+    function setDetailAvatar(name) {
+      const av = document.getElementById("detailAvatar");
+      if (!av) return;
+      av.textContent = leadInitial(name);
+      av.className = "avatar " + avatarHueClass(name);
+    }
+
     function refreshDetailHeaderOnly() {
       const c = conversationsCache.find((x) => x.phone === selectedPhone);
       if (!c) return;
-      document.getElementById("detailName").textContent =
-        (c.name && c.name.trim()) || "ללא שם";
+      const nm = (c.name && c.name.trim()) || "ללא שם";
+      document.getElementById("detailName").textContent = nm;
       document.getElementById("detailPhone").textContent = c.phone;
+      setDetailAvatar(nm);
       renderToolbarIfNeeded(c.status);
     }
 
@@ -1379,10 +3360,10 @@
 
       let html = "";
       if (st === "needs_human") {
-        html += `<span class="badge needs_human" style="margin-inline-end:8px">🚨 הבוט לא ידע לענות — ענה ידנית</span>`;
+        html += `<span class="badge needs_human" style="margin-inline-end:8px">הבוט לא ידע לענות — ענה ידנית</span>`;
       }
       if (st === "bot") {
-        html += `<button type="button" id="btnHandoff">Handoff — קח שליטה</button>`;
+        html += `<button type="button" id="btnHandoff">קח שליטה</button>`;
       }
       if (humanControlled) {
         html += `<button type="button" class="secondary" id="btnHandback">החזר לבוט</button>`;
@@ -1447,9 +3428,10 @@
       hdr.style.display = "flex";
 
       const c = conversationsCache.find((x) => x.phone === selectedPhone);
-      document.getElementById("detailName").textContent =
-        (c && c.name && c.name.trim()) || "ללא שם";
+      const nm = (c && c.name && c.name.trim()) || "ללא שם";
+      document.getElementById("detailName").textContent = nm;
       document.getElementById("detailPhone").textContent = selectedPhone;
+      setDetailAvatar(nm);
       renderToolbarIfNeeded(c ? c.status : "bot");
 
       try {
@@ -1472,16 +3454,25 @@
         wrap.scrollHeight - wrap.scrollTop - wrap.clientHeight < 120;
       const prevLen = wrap.querySelectorAll(".bubble-row").length;
 
+      let lastDay = "";
       wrap.innerHTML = msgs
         .map((m) => {
           const role = m.role || "user";
           const label =
             role === "user"
-              ? "משתמש"
+              ? "לקוח"
               : role === "human_agent"
               ? "נציג"
               : "בוט";
-          return `
+          const day = m.created_at
+            ? new Date(m.created_at).toDateString()
+            : "";
+          let sep = "";
+          if (day && day !== lastDay) {
+            lastDay = day;
+            sep = `<div class="day-sep"><span>${escapeHtml(formatDayLabel(m.created_at))}</span></div>`;
+          }
+          return `${sep}
             <div class="bubble-row ${role}">
               <div>
                 <div class="bubble">${escapeHtml(m.content || "")}</div>
@@ -1526,37 +3517,810 @@
 
     document.getElementById("sendAgentBtn").addEventListener("click", sendAgentMessage);
 
+    // ===== HOME DASHBOARD =====
+    const LEAD_BAR_COLORS = {
+      no_contact: "#94a3b8",
+      message_sent: "#3b82f6",
+      active_conversation: "#8b5cf6",
+      relevant: "#22c55e",
+      not_relevant: "#ef4444",
+    };
+
+    function computeHomeStats() {
+      const convs = conversationsCache;
+      const leads = leadsCache;
+      const needsHuman = convs.filter((c) => c.status === "needs_human");
+      const leadCounts = {};
+      LEAD_STATUS_OPTIONS.forEach((o) => (leadCounts[o.value] = 0));
+      leads.forEach((l) => {
+        const s = l.status || "no_contact";
+        if (leadCounts[s] != null) leadCounts[s]++;
+      });
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const leadsToday = leads.filter(
+        (l) => l.created_at && new Date(l.created_at) >= todayStart
+      ).length;
+      return {
+        totalConvs: convs.length,
+        needsHuman: needsHuman.length,
+        needsHumanList: needsHuman,
+        humanConvs: convs.filter((c) => c.status === "human").length,
+        botConvs: convs.filter((c) => c.status === "bot").length,
+        totalLeads: leads.length,
+        outboundLeads: leads.filter(isOutboundLead).length,
+        inboundLeads: leads.filter(isInboundLead).length,
+        leadsToday,
+        leadCounts,
+        recentConvs: [...convs]
+          .sort((a, b) => new Date(b.last_message_at || 0) - new Date(a.last_message_at || 0))
+          .slice(0, 5),
+        recentLeads: [...leads]
+          .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
+          .slice(0, 5),
+      };
+    }
+
+    const HOME_LIST_CHEVRON =
+      '<span class="home-list-chevron" aria-hidden="true"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></span>';
+
+    const HOME_STAT_ICONS = {
+      chat: '<svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
+      alert: '<svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+      users: '<svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+      calendar: '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>',
+      phoneOff: '<svg viewBox="0 0 24 24"><path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.42 19.42 0 0 1-3.33-2.67m-2.67-3.34a19.79 19.79 0 0 1-3.07-8.63A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"/><line x1="23" y1="1" x2="1" y2="23"/></svg>',
+      activity: '<svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>',
+    };
+
+    function homeStatCard(label, value, hint, variant, iconKey) {
+      const cls = variant ? ` home-stat-card ${variant}` : " home-stat-card";
+      const icon = HOME_STAT_ICONS[iconKey] || HOME_STAT_ICONS.chat;
+      return `
+        <div class="${cls.trim()}">
+          <div class="home-stat-top">
+            <span class="home-stat-icon">${icon}</span>
+          </div>
+          <span class="home-stat-value">${value}</span>
+          <span class="home-stat-label">${escapeHtml(label)}</span>
+          <span class="home-stat-hint">${escapeHtml(hint)}</span>
+        </div>`;
+    }
+
+    function homeEmptyState(icon, text) {
+      return `
+        <div class="home-empty">
+          <div class="home-empty-icon">${icon}</div>
+          <p>${escapeHtml(text)}</p>
+        </div>`;
+    }
+
+    function renderHomeListItem(name, meta, hueClass) {
+      const nm = (name && String(name).trim()) || "ללא שם";
+      return `
+        <div class="home-list-item" role="button" tabindex="0">
+          <span class="avatar ${hueClass}">${escapeHtml(leadInitial(nm))}</span>
+          <div class="info">
+            <div class="name">${escapeHtml(nm)}</div>
+            <div class="meta">${escapeHtml(meta)}</div>
+          </div>
+          ${HOME_LIST_CHEVRON}
+        </div>`;
+    }
+
+    function bindHomeListClicks(container, handler) {
+      container.querySelectorAll(".home-list-item").forEach((el, i) => {
+        const go = () => handler(i);
+        el.addEventListener("click", go);
+        el.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            go();
+          }
+        });
+      });
+    }
+
+    function renderHomeDashboard() {
+      const s = computeHomeStats();
+      const maxLeadCount = Math.max(1, ...Object.values(s.leadCounts));
+
+      document.getElementById("homeConvStats").innerHTML = [
+        homeStatCard("שיחות פעילות", s.totalConvs, `${s.botConvs} בוט · ${s.humanConvs} נציג`, "primary", "chat"),
+        homeStatCard(
+          "דרוש מענה ידני",
+          s.needsHuman,
+          "שיחות שדורשות תשומת לב",
+          s.needsHuman ? "alert" : "",
+          "alert"
+        ),
+        homeStatCard(
+          "שיחות פעילות (לידים)",
+          s.leadCounts.active_conversation || 0,
+          "לידים בשיחה פעילה",
+          "success",
+          "activity"
+        ),
+      ].join("");
+
+      document.getElementById("homeLeadStats").innerHTML = [
+        homeStatCard(
+          "סה״כ לידים",
+          s.totalLeads,
+          `${s.outboundLeads} יוצאים · ${s.inboundLeads} נכנסים`,
+          "primary",
+          "users"
+        ),
+        homeStatCard("לידים היום", s.leadsToday, "נכנסו מהבוקר", "", "calendar"),
+        homeStatCard(
+          "ללא קשר",
+          s.leadCounts.no_contact || 0,
+          "לידים שטרם נוצר קשר",
+          "",
+          "phoneOff"
+        ),
+      ].join("");
+
+      const needsEl = document.getElementById("homeNeedsHuman");
+      if (!s.needsHumanList.length) {
+        needsEl.innerHTML = homeEmptyState("🎉", "אין שיחות שדורשות מענה כרגע — הכל בשליטה!");
+      } else {
+        needsEl.innerHTML = s.needsHumanList
+          .map((c) => {
+            const nm = (c.name && c.name.trim()) || c.phone;
+            return renderHomeListItem(nm, c.phone, avatarHueClass(nm));
+          })
+          .join("");
+        bindHomeListClicks(needsEl, (i) => {
+          const c = s.needsHumanList[i];
+          if (c?.phone) openConversationFromHome(c.phone);
+        });
+      }
+
+      document.getElementById("homeLeadBars").innerHTML = LEAD_STATUS_OPTIONS.map((o) => {
+        const n = s.leadCounts[o.value] || 0;
+        const pct = Math.round((n / maxLeadCount) * 100);
+        const color = LEAD_BAR_COLORS[o.value] || "#94a3b8";
+        return `
+          <div class="home-status-row">
+            <div class="label-row">
+              <span class="home-status-dot" style="background:${color}"></span>
+              <span class="label">${escapeHtml(o.label)}</span>
+            </div>
+            <span class="count">${n}</span>
+            <div class="bar-wrap"><div class="bar" style="width:${pct}%;background:${color}"></div></div>
+          </div>`;
+      }).join("");
+
+      const recentConvsEl = document.getElementById("homeRecentConvs");
+      if (!s.recentConvs.length) {
+        recentConvsEl.innerHTML = homeEmptyState("💬", "אין שיחות עדיין — ברגע שמישהו ישלח הודעה, תראה אותה כאן.");
+      } else {
+        recentConvsEl.innerHTML = s.recentConvs
+          .map((c) => {
+            const nm = (c.name && c.name.trim()) || c.phone;
+            const prev = (c.last_user_message || c.last_message || "").slice(0, 50);
+            return renderHomeListItem(nm, prev || formatListTime(c.last_message_at), avatarHueClass(nm));
+          })
+          .join("");
+        bindHomeListClicks(recentConvsEl, (i) => {
+          const c = s.recentConvs[i];
+          if (c?.phone) openConversationFromHome(c.phone);
+        });
+      }
+
+      const recentLeadsEl = document.getElementById("homeRecentLeads");
+      if (!s.recentLeads.length) {
+        recentLeadsEl.innerHTML = homeEmptyState("📋", "אין לידים עדיין — לידים חדשים יופיעו כאן.");
+      } else {
+        recentLeadsEl.innerHTML = s.recentLeads
+          .map((l) => {
+            const nm = (l.business || l.name || l.phone || "").trim();
+            const status = leadStatusLabel(l.status);
+            return renderHomeListItem(nm, `${status} · ${formatTime(l.created_at)}`, avatarHueClass(nm));
+          })
+          .join("");
+        bindHomeListClicks(recentLeadsEl, (i) => {
+          switchTab("leads");
+        });
+      }
+    }
+
+    async function loadHomeData() {
+      try {
+        await Promise.all([
+          loadConversations(),
+          loadLeads(),
+        ]);
+        renderHomeDashboard();
+      } catch (e) {
+        showError(e.message || String(e));
+      }
+    }
+
+    function openConversationFromHome(phone) {
+      switchTab("conversations");
+      selectConversation(phone);
+    }
+
+    // ===== AI AGENT SETTINGS =====
+    let aiBuiltPreviews = { inbound: "", outbound: "" };
+    let aiOverrideInbound = "";
+    let aiOverrideOutbound = "";
+    let activeAiSegment = "shared";
+    let activeAiPreview = "inbound";
+    let aiSaveInFlight = false;
+    let aiTrainingSessionId = null;
+    let aiTrainingMode = "outbound";
+    let aiTrainingMessages = [];
+    let aiTrainingFeedback = [];
+    let aiTrainingSendInFlight = false;
+
+    function setAiTrainingControlsEnabled(enabled) {
+      document.getElementById("aiTrainingCustomerInput").disabled = !enabled;
+      document.getElementById("aiTrainingSend").disabled = !enabled;
+      document.getElementById("aiTrainingFeedbackInput").disabled = !enabled;
+      document.getElementById("aiTrainingAddFeedback").disabled = !enabled;
+      document.getElementById("aiTrainingSummarize").disabled = !enabled;
+      document.querySelectorAll(".ai-training-mode-btn").forEach((b) => {
+        b.disabled = enabled;
+      });
+    }
+
+    function resetAiTrainingUi() {
+      aiTrainingSessionId = null;
+      aiTrainingMessages = [];
+      aiTrainingFeedback = [];
+      setAiTrainingControlsEnabled(false);
+      document.getElementById("aiTrainingSummarize").disabled = true;
+      document.getElementById("aiTrainingChat").innerHTML =
+        '<div class="ai-training-empty">בחר סוג אימון ולחץ «התחל אימון» כדי לפתוח שיחה</div>';
+      document.getElementById("aiTrainingNotesList").innerHTML =
+        '<div class="ai-training-notes-empty">אין הערות עדיין</div>';
+      hideAiTrainingSummary();
+    }
+
+    function hideAiTrainingSummary() {
+      document.getElementById("aiTrainingSummaryPanel").classList.add("hidden");
+      document.getElementById("aiTrainingSummaryText").textContent = "";
+      document.getElementById("aiTrainingHighlights").innerHTML = "";
+      document.getElementById("aiTrainingRevisedPrompt").value = "";
+    }
+
+    function renderAiTrainingChatHtml(thinking) {
+      if (!aiTrainingSessionId) return "";
+      const agentName =
+        document.getElementById("aiAgentName").value.trim() || "אליה";
+      const html = aiTrainingMessages
+        .map((m) => {
+          if (m.role === "trainer_note") {
+            return `
+            <div class="bubble-row trainer_note">
+              <div>
+                <div class="bubble">${escapeHtml(m.content || "")}</div>
+                <div class="bubble-meta">הערה שלך על הודעת הנציג</div>
+              </div>
+            </div>`;
+          }
+          if (m.role === "bot" && m.isAcknowledgment) {
+            return `
+            <div class="bubble-row bot ack">
+              <div>
+                <div class="bubble">${escapeHtml(m.content || "")}</div>
+                <div class="bubble-meta">אישור הבנה</div>
+              </div>
+            </div>`;
+          }
+          if (m.role === "bot" && m.isRevisedPreview) {
+            return `
+            <div class="bubble-row bot revised">
+              <div>
+                <div class="bubble">${escapeHtml(m.content || "")}</div>
+                <div class="bubble-meta">${escapeHtml(agentName)} — תשובה מתוקנת לפי ההערה</div>
+              </div>
+            </div>`;
+          }
+          const role = m.role === "bot" ? "bot" : "user";
+          const label = role === "bot" ? agentName : "לקוח (אתה)";
+          return `
+            <div class="bubble-row ${role}">
+              <div>
+                <div class="bubble">${escapeHtml(m.content || "")}</div>
+                <div class="bubble-meta">${escapeHtml(label)}</div>
+              </div>
+            </div>`;
+        })
+        .join("");
+      return html;
+    }
+
+    function renderAiTrainingChat(thinking) {
+      const el = document.getElementById("aiTrainingChat");
+      if (!aiTrainingSessionId) return;
+      const agentName =
+        document.getElementById("aiAgentName").value.trim() || "אליה";
+      el.innerHTML =
+        renderAiTrainingChatHtml(false) +
+        (thinking
+          ? `<div class="ai-training-thinking">${escapeHtml(agentName)} חושבת…</div>`
+          : "");
+      el.scrollTop = el.scrollHeight;
+    }
+
+    function renderAiTrainingNotes() {
+      const el = document.getElementById("aiTrainingNotesList");
+      if (!aiTrainingFeedback.length) {
+        el.innerHTML =
+          '<div class="ai-training-notes-empty">אין הערות עדיין — הוסף הערות תוך כדי השיחה</div>';
+        return;
+      }
+      el.innerHTML = aiTrainingFeedback
+        .map((n) => {
+          const t = n.ts ? new Date(n.ts).toLocaleTimeString("he-IL", {
+            hour: "2-digit",
+            minute: "2-digit",
+          }) : "";
+          const rel = (n.relatedMessageContent || "").trim();
+          return `
+            <div class="ai-training-note-item">
+              ${escapeHtml(n.text)}
+              ${rel ? `<div class="note-related">על הודעה: ${escapeHtml(rel.length > 72 ? rel.slice(0, 72) + "…" : rel)}</div>` : ""}
+              <div class="note-time">${escapeHtml(t)}${n.type === "inline" ? " · בשיחה" : ""}</div>
+            </div>`;
+        })
+        .join("");
+    }
+
+    async function discardAiTrainingSession() {
+      if (!aiTrainingSessionId) return;
+      try {
+        await api("POST", "/api/ai-agent/training/discard", {
+          sessionId: aiTrainingSessionId,
+        });
+      } catch (_e) {
+        /* ignore */
+      }
+    }
+
+    async function startAiTraining() {
+      if (aiTrainingSendInFlight) return;
+      const btn = document.getElementById("aiTrainingStart");
+      btn.disabled = true;
+      btn.textContent = "מתחיל…";
+      try {
+        if (aiTrainingSessionId) await discardAiTrainingSession();
+        hideAiTrainingSummary();
+        const data = await api("POST", "/api/ai-agent/training/start", {
+          mode: aiTrainingMode,
+        });
+        aiTrainingSessionId = data.sessionId;
+        aiTrainingMessages = data.messages || [];
+        aiTrainingFeedback = data.feedback || [];
+        setAiTrainingControlsEnabled(true);
+        renderAiTrainingChat(false);
+        renderAiTrainingNotes();
+        document.getElementById("aiTrainingCustomerInput").focus();
+      } catch (e) {
+        showError(e.message || String(e));
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "התחל אימון";
+      }
+    }
+
+    async function sendAiTrainingMessage() {
+      if (!aiTrainingSessionId || aiTrainingSendInFlight) return;
+      const input = document.getElementById("aiTrainingCustomerInput");
+      const text = (input.value || "").trim();
+      if (!text) return;
+
+      const isInlineNote = /^\*\s*[\s\S]+\s*\*$/.test(text);
+
+      aiTrainingSendInFlight = true;
+      document.getElementById("aiTrainingSend").disabled = true;
+      input.disabled = true;
+      const el = document.getElementById("aiTrainingChat");
+      el.innerHTML =
+        renderAiTrainingChatHtml(false) +
+        `<div class="ai-training-thinking">${isInlineNote ? "מעבד הערה ומכין תשובה מתוקנת…" : escapeHtml(document.getElementById("aiAgentName").value.trim() || "אליה") + " חושבת…"}</div>`;
+      el.scrollTop = el.scrollHeight;
+
+      try {
+        const data = await api("POST", "/api/ai-agent/training/chat", {
+          sessionId: aiTrainingSessionId,
+          message: text,
+        });
+        aiTrainingMessages = data.messages || [];
+        aiTrainingFeedback = data.feedback || aiTrainingFeedback;
+        input.value = "";
+        renderAiTrainingChat(false);
+        renderAiTrainingNotes();
+        hideAiTrainingSummary();
+        if (data.quotaWarning) {
+          showError(data.quotaWarning);
+        }
+      } catch (e) {
+        renderAiTrainingChat(false);
+        showError(e.message || String(e));
+      } finally {
+        aiTrainingSendInFlight = false;
+        input.disabled = false;
+        document.getElementById("aiTrainingSend").disabled = false;
+        input.focus();
+      }
+    }
+
+    async function addAiTrainingFeedback() {
+      if (!aiTrainingSessionId) return;
+      const input = document.getElementById("aiTrainingFeedbackInput");
+      const note = (input.value || "").trim();
+      if (!note) return;
+      const btn = document.getElementById("aiTrainingAddFeedback");
+      btn.disabled = true;
+      try {
+        const data = await api("POST", "/api/ai-agent/training/feedback", {
+          sessionId: aiTrainingSessionId,
+          note,
+        });
+        aiTrainingFeedback = data.feedback || [];
+        input.value = "";
+        renderAiTrainingNotes();
+        hideAiTrainingSummary();
+      } catch (e) {
+        showError(e.message || String(e));
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function summarizeAiTraining() {
+      if (!aiTrainingSessionId) return;
+      const btn = document.getElementById("aiTrainingSummarize");
+      btn.disabled = true;
+      btn.textContent = "מסכם…";
+      try {
+        const data = await api("POST", "/api/ai-agent/training/summarize", {
+          sessionId: aiTrainingSessionId,
+        });
+        const summary = data.summary || {};
+        document.getElementById("aiTrainingSummaryText").textContent =
+          summary.summaryHebrew || "";
+        const highlights = [
+          ...(summary.feedbackPoints || []),
+          ...(summary.changeHighlights || []),
+        ];
+        document.getElementById("aiTrainingHighlights").innerHTML = highlights
+          .map((h) => `<div class="ai-training-highlight">${escapeHtml(h)}</div>`)
+          .join("");
+        document.getElementById("aiTrainingRevisedPrompt").value =
+          summary.revisedSystemPrompt || "";
+        document.getElementById("aiTrainingSummaryPanel").classList.remove("hidden");
+        document
+          .getElementById("aiTrainingSummaryPanel")
+          .scrollIntoView({ behavior: "smooth", block: "nearest" });
+      } catch (e) {
+        showError(e.message || String(e));
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "סיים וסכם";
+      }
+    }
+
+    async function approveAiTraining() {
+      if (!aiTrainingSessionId) return;
+      const revised = document.getElementById("aiTrainingRevisedPrompt").value;
+      const btn = document.getElementById("aiTrainingApprove");
+      btn.disabled = true;
+      btn.textContent = "מעדכן…";
+      const statusEl = document.getElementById("aiSaveStatus");
+      try {
+        const data = await api("POST", "/api/ai-agent/training/apply", {
+          sessionId: aiTrainingSessionId,
+          revisedPrompt: revised,
+        });
+        populateAiForm(data.config);
+        aiBuiltPreviews = data.previews || {};
+        aiOverrideInbound = String(
+          data.config?.inbound?.systemPromptOverride || ""
+        );
+        aiOverrideOutbound = String(
+          data.config?.outbound?.systemPromptOverride || ""
+        );
+        activeAiPreview = data.appliedMode || aiTrainingMode;
+        document.querySelectorAll(".ai-preview-tab").forEach((b) => {
+          b.classList.toggle("active", b.dataset.aiPreview === activeAiPreview);
+        });
+        resetAiTrainingUi();
+        switchAiSegment("preview");
+        updateAiPreviewDisplay();
+        statusEl.textContent =
+          "הפרומפט עודכן מהאימון — הנציג AI ישתמש בו מעכשיו (תצוגת פרומפט)";
+        statusEl.classList.add("ok");
+      } catch (e) {
+        showError(e.message || String(e));
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "אשר ועדכן פרומפט";
+      }
+    }
+
+    async function discardAiTrainingSummary() {
+      hideAiTrainingSummary();
+      if (aiTrainingSessionId) {
+        await discardAiTrainingSession();
+        resetAiTrainingUi();
+      }
+    }
+
+    function persistPreviewDraft() {
+      const el = document.getElementById("aiPreviewText");
+      if (!el) return;
+      if (activeAiPreview === "outbound") {
+        aiOverrideOutbound = el.value;
+      } else {
+        aiOverrideInbound = el.value;
+      }
+    }
+
+    function updateAiPreviewBadge() {
+      const badge = document.getElementById("aiPreviewOverrideBadge");
+      if (!badge) return;
+      const hasOverride =
+        activeAiPreview === "outbound"
+          ? Boolean(String(aiOverrideOutbound || "").trim())
+          : Boolean(String(aiOverrideInbound || "").trim());
+      badge.classList.toggle("hidden", !hasOverride);
+    }
+
+    function switchAiSegment(segment) {
+      if (activeAiSegment === "preview") persistPreviewDraft();
+      activeAiSegment = segment;
+      document.querySelectorAll(".ai-segment-btn").forEach((btn) => {
+        btn.classList.toggle("active", btn.dataset.aiSegment === segment);
+      });
+      document.querySelectorAll(".ai-panel").forEach((panel) => {
+        panel.classList.toggle("active", panel.dataset.aiPanel === segment);
+      });
+      if (segment === "preview") updateAiPreviewDisplay();
+    }
+
+    function updateAiPreviewDisplay() {
+      const el = document.getElementById("aiPreviewText");
+      if (!el) return;
+      if (activeAiPreview === "outbound") {
+        el.value =
+          aiOverrideOutbound ||
+          aiBuiltPreviews.outbound ||
+          "";
+      } else {
+        el.value =
+          aiOverrideInbound ||
+          aiBuiltPreviews.inbound ||
+          "";
+      }
+      updateAiPreviewBadge();
+    }
+
+    function populateAiForm(config) {
+      if (!config) return;
+      document.getElementById("aiAgentName").value = config.agentName || "";
+      document.getElementById("aiKnowledgeBase").value = config.knowledgeBase || "";
+      document.getElementById("aiWhatsappStyle").value = config.whatsappStyle || "";
+      const inb = config.inbound || {};
+      document.getElementById("aiInboundIntro").value = inb.introduction || "";
+      document.getElementById("aiInboundGoals").value = inb.goals || "";
+      document.getElementById("aiInboundFlow").value = inb.conversationFlow || "";
+      document.getElementById("aiInboundTone").value = inb.toneAndStyle || "";
+      document.getElementById("aiInboundSales").value = inb.salesMethod || "";
+      document.getElementById("aiInboundOpening").value = inb.openingTemplate || "";
+      const out = config.outbound || {};
+      document.getElementById("aiOutboundIntro").value = out.introduction || "";
+      document.getElementById("aiOutboundGoals").value = out.goals || "";
+      document.getElementById("aiOutboundFlow").value = out.conversationFlow || "";
+      document.getElementById("aiOutboundTone").value = out.toneAndStyle || "";
+      document.getElementById("aiOutboundSales").value = out.salesMethod || "";
+      document.getElementById("aiOutboundRules").value = out.hardRules || "";
+      document.getElementById("aiOutboundFirst").value = out.firstMessageTemplate || "";
+    }
+
+    function collectAiForm() {
+      if (activeAiSegment === "preview") persistPreviewDraft();
+
+      const inboundFields = {
+        introduction: document.getElementById("aiInboundIntro").value,
+        goals: document.getElementById("aiInboundGoals").value,
+        conversationFlow: document.getElementById("aiInboundFlow").value,
+        toneAndStyle: document.getElementById("aiInboundTone").value,
+        salesMethod: document.getElementById("aiInboundSales").value,
+        openingTemplate: document.getElementById("aiInboundOpening").value,
+      };
+      const outboundFields = {
+        introduction: document.getElementById("aiOutboundIntro").value,
+        goals: document.getElementById("aiOutboundGoals").value,
+        conversationFlow: document.getElementById("aiOutboundFlow").value,
+        toneAndStyle: document.getElementById("aiOutboundTone").value,
+        salesMethod: document.getElementById("aiOutboundSales").value,
+        hardRules: document.getElementById("aiOutboundRules").value,
+        firstMessageTemplate: document.getElementById("aiOutboundFirst").value,
+      };
+
+      if (activeAiSegment === "preview") {
+        inboundFields.systemPromptOverride = aiOverrideInbound;
+        outboundFields.systemPromptOverride = aiOverrideOutbound;
+      } else {
+        inboundFields.systemPromptOverride = "";
+        outboundFields.systemPromptOverride = "";
+        aiOverrideInbound = "";
+        aiOverrideOutbound = "";
+      }
+
+      return {
+        agentName: document.getElementById("aiAgentName").value.trim(),
+        knowledgeBase: document.getElementById("aiKnowledgeBase").value,
+        whatsappStyle: document.getElementById("aiWhatsappStyle").value,
+        inbound: inboundFields,
+        outbound: outboundFields,
+      };
+    }
+
+    async function loadAiAgentSettings() {
+      const statusEl = document.getElementById("aiSaveStatus");
+      try {
+        const data = await api("GET", "/api/ai-agent");
+        populateAiForm(data.config);
+        aiBuiltPreviews = data.previews || { inbound: "", outbound: "" };
+        aiOverrideInbound = String(data.config?.inbound?.systemPromptOverride || "");
+        aiOverrideOutbound = String(data.config?.outbound?.systemPromptOverride || "");
+        updateAiPreviewDisplay();
+        if (statusEl) statusEl.textContent = "";
+      } catch (e) {
+        showError(e.message || String(e));
+      }
+    }
+
+    async function saveAiAgentSettings() {
+      if (aiSaveInFlight) return;
+      const btn = document.getElementById("aiAgentSave");
+      const statusEl = document.getElementById("aiSaveStatus");
+      aiSaveInFlight = true;
+      btn.disabled = true;
+      btn.textContent = "שומר…";
+      statusEl.textContent = "";
+      statusEl.classList.remove("ok");
+      try {
+        const data = await api("PATCH", "/api/ai-agent", collectAiForm());
+        populateAiForm(data.config);
+        aiBuiltPreviews = data.previews || {};
+        aiOverrideInbound = String(data.config?.inbound?.systemPromptOverride || "");
+        aiOverrideOutbound = String(data.config?.outbound?.systemPromptOverride || "");
+        updateAiPreviewDisplay();
+        statusEl.textContent =
+          activeAiSegment === "preview"
+            ? "הפרומפט נשמר — הנציג AI ישתמש בו מעכשיו"
+            : "ההגדרות נשמרו בהצלחה";
+        statusEl.classList.add("ok");
+      } catch (e) {
+        showError(e.message || String(e));
+      } finally {
+        aiSaveInFlight = false;
+        btn.disabled = false;
+        btn.textContent = "שמירה";
+      }
+    }
+
+    async function resetAiAgentSettings() {
+      const ok = window.confirm(
+        "לאפס את כל הגדרות הנציג AI לברירת המחדל?\nהשינויים שלך יימחקו."
+      );
+      if (!ok) return;
+      const statusEl = document.getElementById("aiSaveStatus");
+      try {
+        const data = await api("POST", "/api/ai-agent/reset");
+        populateAiForm(data.config);
+        aiBuiltPreviews = data.previews || {};
+        aiOverrideInbound = "";
+        aiOverrideOutbound = "";
+        updateAiPreviewDisplay();
+        statusEl.textContent = "אופס לברירת מחדל";
+        statusEl.classList.add("ok");
+      } catch (e) {
+        showError(e.message || String(e));
+      }
+    }
+
+    document.querySelectorAll(".ai-segment-btn").forEach((btn) => {
+      btn.addEventListener("click", () => switchAiSegment(btn.dataset.aiSegment));
+    });
+    document.querySelectorAll(".ai-preview-tab").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        persistPreviewDraft();
+        activeAiPreview = btn.dataset.aiPreview;
+        document.querySelectorAll(".ai-preview-tab").forEach((b) => {
+          b.classList.toggle("active", b.dataset.aiPreview === activeAiPreview);
+        });
+        updateAiPreviewDisplay();
+      });
+    });
+    document.getElementById("aiPreviewText").addEventListener("input", () => {
+      persistPreviewDraft();
+      updateAiPreviewBadge();
+    });
+    document.getElementById("aiAgentSave").addEventListener("click", saveAiAgentSettings);
+    document.getElementById("aiAgentReset").addEventListener("click", resetAiAgentSettings);
+
+    document.querySelectorAll(".ai-training-mode-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        if (aiTrainingSessionId) return;
+        aiTrainingMode = btn.dataset.trainingMode;
+        document.querySelectorAll(".ai-training-mode-btn").forEach((b) => {
+          b.classList.toggle("active", b.dataset.trainingMode === aiTrainingMode);
+        });
+      });
+    });
+    document.getElementById("aiTrainingStart").addEventListener("click", startAiTraining);
+    document.getElementById("aiTrainingSend").addEventListener("click", sendAiTrainingMessage);
+    document.getElementById("aiTrainingCustomerInput").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        sendAiTrainingMessage();
+      }
+    });
+    document.getElementById("aiTrainingAddFeedback").addEventListener("click", addAiTrainingFeedback);
+    document.getElementById("aiTrainingSummarize").addEventListener("click", summarizeAiTraining);
+    document.getElementById("aiTrainingApprove").addEventListener("click", approveAiTraining);
+    document.getElementById("aiTrainingDiscard").addEventListener("click", discardAiTrainingSummary);
+
     // ===== TABS =====
     function switchTab(tab) {
       activeTab = tab;
       document.querySelectorAll(".tab-btn").forEach((b) => {
         b.classList.toggle("active", b.dataset.tab === tab);
       });
+      document.getElementById("viewHome").classList.toggle("active", tab === "home");
       document
         .getElementById("viewConversations")
         .classList.toggle("active", tab === "conversations");
       document
         .getElementById("viewLeads")
         .classList.toggle("active", tab === "leads");
+      document
+        .getElementById("viewAiAgent")
+        .classList.toggle("active", tab === "ai-agent");
+      if (tab === "home") {
+        loadHomeData();
+      }
       if (tab === "leads") {
         updateLeadsSegmentUi();
         loadLeads();
         loadHourlyNoContactSetting();
       }
+      if (tab === "ai-agent") {
+        loadAiAgentSettings();
+      }
     }
 
+    document.getElementById("tabHome").addEventListener("click", () => switchTab("home"));
+    document.getElementById("tabAiAgent").addEventListener("click", () => switchTab("ai-agent"));
     document
       .getElementById("tabConversations")
       .addEventListener("click", () => switchTab("conversations"));
     document
       .getElementById("tabLeads")
       .addEventListener("click", () => switchTab("leads"));
+    document.getElementById("homeGoConversations").addEventListener("click", () => switchTab("conversations"));
+    document.getElementById("homeGoLeads").addEventListener("click", () => switchTab("leads"));
+    document.getElementById("homeLinkConversations").addEventListener("click", () => switchTab("conversations"));
+    document.getElementById("homeLinkLeads").addEventListener("click", () => switchTab("leads"));
     document
       .getElementById("leadsSegmentOutbound")
       .addEventListener("click", () => switchLeadsSegment("outbound"));
     document
       .getElementById("leadsSegmentInbound")
       .addEventListener("click", () => switchLeadsSegment("inbound"));
+    document.getElementById("leadsSearchInput").addEventListener("input", (e) => {
+      leadsSearchQuery = e.target.value || "";
+      renderLeads();
+    });
 
     // ===== LEADS =====
     let importInFlight = false;
@@ -1691,7 +4455,7 @@
       } finally {
         importInFlight = false;
         btn.disabled = false;
-        btn.textContent = "ייבוא Excel";
+        btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1rem;height:1rem"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> ייבוא Excel';
       }
     });
 
@@ -1699,7 +4463,8 @@
       try {
         const rows = await api("GET", "/api/leads");
         leadsCache = Array.isArray(rows) ? rows : [];
-        renderLeads();
+        if (activeTab === "leads") renderLeads();
+        if (activeTab === "home") renderHomeDashboard();
       } catch (e) {
         showError(e.message || String(e));
       }
@@ -1901,20 +4666,61 @@
       });
     }
 
+    function renderLeadsStats() {
+      const statsEl = document.getElementById("leadsStats");
+      const segmentLeads = getSegmentLeads();
+      const counts = {};
+      LEAD_STATUS_OPTIONS.forEach((o) => (counts[o.value] = 0));
+      segmentLeads.forEach((l) => {
+        const s = l.status || "no_contact";
+        if (counts[s] != null) counts[s]++;
+      });
+
+      const chips = [
+        `<button type="button" class="stat-chip${!leadsStatusFilter ? " active" : ""}" data-status-filter="">
+          <span class="dot dot-all"></span>הכל<span class="num">${segmentLeads.length}</span>
+        </button>`,
+        ...LEAD_STATUS_OPTIONS.map(
+          (o) =>
+            `<button type="button" class="stat-chip${leadsStatusFilter === o.value ? " active" : ""}" data-status-filter="${o.value}">
+              <span class="dot dot-${o.value}"></span>${escapeHtml(o.label)}<span class="num">${counts[o.value]}</span>
+            </button>`
+        ),
+      ];
+      statsEl.innerHTML = chips.join("");
+
+      statsEl.querySelectorAll(".stat-chip").forEach((chip) => {
+        chip.addEventListener("click", () => {
+          const v = chip.getAttribute("data-status-filter") || null;
+          leadsStatusFilter = leadsStatusFilter === v ? null : v;
+          renderLeads();
+        });
+      });
+    }
+
     function renderLeads() {
       const wrap = document.getElementById("leadsTableWrap");
       const countEl = document.getElementById("leadsCount");
+      renderLeadsStats();
       const filteredLeads = getFilteredLeads();
       const segmentLabel =
         activeLeadsSegment === "outbound" ? "יוצאים" : "נכנסים";
       countEl.textContent = `${filteredLeads.length} לידים ${segmentLabel}`;
 
       if (!filteredLeads.length) {
-        const emptyMsg =
-          activeLeadsSegment === "outbound"
-            ? "אין לידים יוצאים עדיין. הוסף ליד ידנית או ייבא קובץ Excel."
-            : "אין לידים נכנסים עדיין. לידים מטופס האתר יופיעו כאן אוטומטית.";
-        wrap.innerHTML = `<div class="leads-empty">${emptyMsg}</div>`;
+        const hasFilters = Boolean(leadsStatusFilter || leadsSearchQuery.trim());
+        const emptyMsg = hasFilters
+          ? "לא נמצאו לידים תואמים לסינון הנוכחי."
+          : activeLeadsSegment === "outbound"
+          ? "אין לידים יוצאים עדיין. הוסף ליד ידנית או ייבא קובץ Excel."
+          : "אין לידים נכנסים עדיין. לידים מטופס האתר יופיעו כאן אוטומטית.";
+        wrap.innerHTML = `
+          <div class="leads-empty">
+            <span class="empty-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
+            </span>
+            ${emptyMsg}
+          </div>`;
         return;
       }
 
@@ -1942,7 +4748,7 @@
               ${showSendColumn ? `<td class="lead-send-cell">${sendBtn}</td>` : ""}
               <td>
                 <div class="lead-name-cell">
-                  <span class="lead-avatar" aria-hidden="true">${escapeHtml(leadInitial(name))}</span>
+                  <span class="lead-avatar avatar ${avatarHueClass(name)}" aria-hidden="true">${escapeHtml(leadInitial(name))}</span>
                   <span class="lead-name-text" title="${escapeHtml(name)}">${escapeHtml(name)}</span>
                 </div>
               </td>
@@ -2002,9 +4808,11 @@
     }
 
     function bootstrapDashboard() {
-      loadConversations();
+      loadHomeData();
       loadHourlyNoContactSetting();
-      setInterval(loadConversations, CONV_POLL_MS);
+      setInterval(() => {
+        if (activeTab === "home" || activeTab === "conversations") loadConversations();
+      }, CONV_POLL_MS);
 
       setInterval(async () => {
         if (!selectedPhone) return;
@@ -2018,7 +4826,7 @@
       }, MSG_POLL_MS);
 
       setInterval(() => {
-        if (activeTab === "leads") loadLeads();
+        if (activeTab === "leads" || activeTab === "home") loadLeads();
       }, LEADS_POLL_MS);
 
       document.getElementById("agentInput").addEventListener("keydown", (e) => {

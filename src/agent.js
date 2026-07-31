@@ -1,29 +1,13 @@
-const { GoogleGenerativeAI } = require("@google/generative-ai");
-const fs = require("fs");
-const path = require("path");
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-
-/** ברירת מחדל: gemini-2.5-flash — תואם לרוב מכסות ה-Free ב-AI Studio; ניתן לדריסה ב-.env */
-const GEMINI_MODEL =
-  process.env.GEMINI_MODEL?.trim() || "gemini-2.5-flash";
-
-const WHATSAPP_STYLE = `**סגנון וואטסאפ ישראלי — חוקי ברזל:**
-- משפט אחד קצר. מקסימום שניים רק אם חייבים.
-- 5–15 מילים. לעולם יותר מ-20 מילים.
-- ענייני וישיר — בלי הקדמות, בלי פסקאות, בלי רשימות, בלי כוכביות.
-- כמו הודעה שחברה שולחת — לא כמו מייל או פרסומת.
-- שאלה של הלקוח → תשובה ישירה, בלי "וואו" / "מעולה" / "מהמם" בהתחלה (אלא אם באמת מתאים).
-- דוגמאות טובות: "249 ש״ח בחודש, בלי הקמה" / "רוצה לשמוע עוד?" / "הבנתי, בהצלחה ותודה 🙂"`;
-
-const GENERATION_CONFIG = {
-  // gemini-2.5-flash מפעיל "חשיבה" כברירת מחדל, וטוקני החשיבה נספרים מול
-  // maxOutputTokens. תקרה נמוכה מדי (70) גרמה לתשובות ריקות. מכבים חשיבה
-  // ומשאירים תקרה נדיבה כדי שתמיד תחזור הודעה קצרה אמיתית.
-  maxOutputTokens: Number(process.env.GEMINI_MAX_OUTPUT_TOKENS) || 256,
-  temperature: 0.65,
-  thinkingConfig: { thinkingBudget: 0 },
-};
+const {
+  getAiAgentConfig,
+  DEFAULT_WHATSAPP_STYLE,
+} = require("./aiAgentConfig");
+const {
+  chatText,
+  completeText,
+  isQuotaError,
+  formatAIUserError,
+} = require("./llm");
 
 function formatBotReply(text) {
   return String(text || "")
@@ -35,53 +19,6 @@ function formatBotReply(text) {
     .trim();
 }
 
-/** מחלץ טקסט מתשובת Gemini בבטחה — לא זורק גם אם נחסם / ריק. */
-function safeResponseText(result) {
-  try {
-    const text = result?.response?.text?.();
-    return formatBotReply(text);
-  } catch (_err) {
-    return "";
-  }
-}
-
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-/** מושך מהודעת השגיאה את זמן ההמתנה שהשרת מציע (למשל "Please retry in 43.9s") */
-function parseRetryDelayMs(err) {
-  const msg = String(err?.message ?? err ?? "");
-  const m = msg.match(/retry in ([\d.]+)\s*s/i);
-  if (!m) return null;
-  const sec = parseFloat(m[1]);
-  if (Number.isNaN(sec)) return null;
-  return Math.min(120_000, Math.ceil(sec * 1000) + 400);
-}
-
-function isTransientGeminiError(err) {
-  const status = err?.status ?? err?.statusCode ?? err?.cause?.status;
-  if (status === 429 || status === 503 || status === 502) return true;
-  const msg = String(err?.message ?? err ?? "");
-  return /429|503|502|Too Many Requests|quota|rate limit|unavailable|high demand/i.test(
-    msg
-  );
-}
-
-// טוען את בסיס הידע פעם אחת בהפעלה
-const knowledgeBase = fs.readFileSync(
-  path.join(__dirname, "knowledge.md"),
-  "utf-8"
-);
-
-/**
- * מחזיר ניסוח להחזרה אנושית של נציג, לפי שעון ישראל בזמן השיחה.
- * חוקים:
- *  - ימים א'–ה' 09:00–17:00 → "בשעה הקרובה"
- *  - ימים א'–ה' לפני 09:00 → "הבוקר בשעות הפעילות"
- *  - ימים א'–ה' אחרי 17:00 → "מחר בשעות הבוקר" (ה' → ראשון)
- *  - שישי / שבת → "ביום ראשון בשעות הבוקר" / "מחר בשעות הבוקר"
- */
 function getCallbackPhrase(now = new Date()) {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: "Asia/Jerusalem",
@@ -116,38 +53,35 @@ function getCallbackPhrase(now = new Date()) {
   return "נציג יחזור אליך בהקדם בשעות הפעילות";
 }
 
-function buildSystemPrompt() {
+function resolveInboundSystemPrompt(config) {
+  const override = String(config.inbound?.systemPromptOverride || "").trim();
+  if (override) return override;
+  return buildInboundSystemPrompt(config);
+}
+
+function resolveOutboundSystemPrompt(config) {
+  const override = String(config.outbound?.systemPromptOverride || "").trim();
+  if (override) return override;
+  return buildOutboundSystemPrompt(config);
+}
+
+function buildInboundSystemPrompt(config) {
   const callbackPhrase = getCallbackPhrase();
-  return `את אליה, נציגה מצוות Tori — פלטפורמה שבונה אפליקציות ממותגות לעסקים קטנים.
-הלקוח השאיר פרטים בדף נחיתה והתעניין באפליקציה. את פותחת איתו שיחה בוואטסאפ.
+  const inbound = config.inbound || {};
+  const style = config.whatsappStyle || DEFAULT_WHATSAPP_STYLE;
+  const kb = config.knowledgeBase || "";
 
-**המטרה של השיחה (לפי הסדר):**
-1. ללמוד עליו ועל העסק — תחום, שם העסק, עיר.
-2. במקביל לענות על כל שאלה שהוא שואל על Tori.
-3. בסוף, כשיש לך את הפרטים העיקריים, להגיד לו שנציג יחייג אליו בהקדם להמשך התהליך.
+  return `${inbound.introduction || ""}
 
-**זרימת שיחה רצויה (אל תהיי נוקשה — הסתגלי לקצב שלו):**
-- שאלה ראשונה: מאיזה תחום הוא מגיע.
-- אחר כך: איך קוראים לעסק.
-- אחר כך: באיזה עיר הוא נמצא.
-- אחרי שיש לך את הפרטים — תגידי שזה מספיק כדי שנציג יחזור אליו, ותסיימי בהבטחה שנציג מחייג בהקדם.
-- אם הוא שואל שאלה על Tori באמצע — תעני קצר ואז תחזרי לאיסוף הפרטים.
-- אל תשאלי שתי שאלות באותה הודעה. שאלה אחת בלבד בכל פעם.
+${inbound.goals || ""}
 
-${WHATSAPP_STYLE}
+${inbound.conversationFlow || ""}
 
-ברכי רק בהודעה הראשונה. אל תפתחי כל תשובה ב"היי".
+${style}
 
-**טון:**
-- חם, אנושי, ישיר. בלי שפה רובוטית או "שיווקית".
-- שאלה ספציפית → תשובה ישירה, בלי הקדמות.
-- שאלה על המוצר שהתשובה לה אינה בבסיס הידע? אל תמציאי ואל תנחשי — כתבי בדיוק: __NO_ANSWER__ (וכלום מלבד זה). זה רק לשאלות על המוצר ללא תשובה בבסיס הידע — לא להודעות רגילות.
+${inbound.toneAndStyle || ""}
 
-**דוגמאות להודעות בסגנון הנכון:**
-- "מגניב, איך קוראים לעסק?"
-- "ומאיזה עיר אתם פועלים?"
-- "האפליקציה תצא עם הלוגו שלך, לא של טורי 🙂"
-- "אחלה, יש לי מספיק מידע — נציג יחזור אליך בהקדם להמשך."
+${inbound.salesMethod || ""}
 
 **סיום השיחה:**
 ברגע שיש לך תחום + שם עסק + עיר, סכמי קצר עם הניסוח המדויק הזה (לפי השעה הנוכחית):
@@ -159,25 +93,189 @@ ${WHATSAPP_STYLE}
 
 **בסיס הידע שלך (השתמשי רק במידע הזה כשהוא שואל על Tori):**
 ---
-${knowledgeBase}
+${kb}
 ---
 
 **אל תמציאי מידע שאינו בבסיס הידע.**`;
 }
 
-// מאגר שיחות בזיכרון — { phone: [ { role: "user"|"model", parts: [{ text }] } ] }
-const conversations = new Map();
+function buildOutboundSystemPrompt(config) {
+  const callbackPhrase = getCallbackPhrase();
+  const outbound = config.outbound || {};
+  const style = config.whatsappStyle || DEFAULT_WHATSAPP_STYLE;
+  const kb = config.knowledgeBase || "";
 
-/** המודל נבנה לכל בקשה כדי שה-systemInstruction יתעדכן לפי שעון ישראל */
-function buildModel() {
-  return genAI.getGenerativeModel({
-    model: GEMINI_MODEL,
-    systemInstruction: buildSystemPrompt(),
-    generationConfig: GENERATION_CONFIG,
-  });
+  return `${outbound.introduction || ""}
+
+בכל פנייה תקבלי את **תמליל השיחה המלא** (ההודעות שלך מסומנות "אליה", של הלקוחה "לקוחה"). קראי את כל השיחה והגיבי אך ורק להודעה האחרונה של הלקוחה, לפי ההקשר.
+
+${outbound.goals || ""}
+
+${outbound.conversationFlow || ""}
+
+אם היא מתעניינת — הניסוח המדויק לפי השעה: "${callbackPhrase}".
+
+${outbound.hardRules || ""}
+
+${outbound.toneAndStyle || ""}
+
+${outbound.salesMethod || ""}
+
+${style}
+
+**בסיס הידע (רק מידע זה — אל תמציאי):**
+---
+${kb}
+---`;
 }
 
-/** Gemini דורש שהיסטוריה תתחיל ב-role "user" — קוצץ הודעות "model" מההתחלה */
+const conversations = new Map();
+
+const REVISION_QUESTION_PATTERNS = [
+  /מאיזה תחום/iu,
+  /מאיזו תחום/iu,
+  /איך קוראים לעסק/iu,
+  /שם העסק/iu,
+  /מאיזה עיר/iu,
+  /מאיזו עיר/iu,
+  /באיזה עיר/iu,
+  /באיזו עיר/iu,
+];
+
+function formatRevisionTranscript(priorMessages, agentName, wrongMessage) {
+  const lines = [];
+  for (const m of priorMessages) {
+    if (m.role === "user") {
+      lines.push(`לקוח: ${m.content}`);
+    } else if (m.role === "bot") {
+      lines.push(`${agentName}: ${m.content}`);
+    }
+  }
+  lines.push(
+    `${agentName} [הודעה שגויה שצריך להחליף — לא להשאיר כמו שהיא]: ${wrongMessage}`
+  );
+  return lines.join("\n");
+}
+
+function matchedQuestionPatterns(text) {
+  const t = String(text || "");
+  return REVISION_QUESTION_PATTERNS.filter((re) => re.test(t));
+}
+
+function revisedRepeatsPriorQuestion(revised, priorMessages) {
+  const revisedPatterns = matchedQuestionPatterns(revised);
+  if (!revisedPatterns.length) return false;
+  for (const m of priorMessages) {
+    if (m.role !== "bot") continue;
+    const priorPatterns = matchedQuestionPatterns(m.content);
+    for (const rp of revisedPatterns) {
+      if (priorPatterns.some((pp) => pp.source === rp.source)) return true;
+    }
+  }
+  return false;
+}
+
+function buildRevisionPrompt(
+  agentName,
+  transcript,
+  original,
+  note,
+  mode,
+  retryHint
+) {
+  const flowHint =
+    mode === "inbound"
+      ? "אם הלקוח כבר ענה על תחום — המשך לשאלה הבאה (שם עסק, עיר). אם כבר יש תחום+עסק — עיר. אל תחזור על שאלות מהתמליל."
+      : "אל תחזור על שאלות שכבר נשאלו בתמליל. המשך לפי ההקשר וההערה.";
+
+  return `אימון נציג AI — כתוב **הודעה מתוקנת אחת** של ${agentName} שמחליפה את ההודעה השגויה.
+
+תמליל השיחה עד כה:
+${transcript}
+
+הודעת הנציג השגויה (להחליף — לא לשכפל):
+"${original}"
+
+הערת המאמן (חובה ליישם במלואה):
+"${note}"
+
+משימה:
+- כתוב את ההודעה שאמורה להחליף את ההודעה השגויה **באותו נקודת זמן בשיחה**
+- אסור לשאול שאלה שכבר נשאלה בתמליל למעלה
+- אם הלקוח כבר ענה על משהו — אל תשאל שוב; המשך לשאלה הבאה
+- ${flowHint}
+- הודעה אחת מלאה, 5–20 מילים, וואטסאפ ישראלי, ענייני
+- רק טקסט ההודעה — בלי תווית, בלי מרכאות, בלי הסברים
+${retryHint ? `\n${retryHint}` : ""}`;
+}
+
+async function regenerateAgentReplyWithTrainerNote(
+  mode,
+  priorMessages,
+  originalMessage,
+  trainerNote,
+  agentName = "אליה"
+) {
+  const note = String(trainerNote || "").trim();
+  const original = String(originalMessage || "").trim();
+  const name = String(agentName || "אליה").trim();
+  const transcript = formatRevisionTranscript(priorMessages, name, original);
+
+  const config = await getAiAgentConfig();
+  const systemInstruction =
+    mode === "inbound"
+      ? resolveInboundSystemPrompt(config)
+      : resolveOutboundSystemPrompt(config);
+
+  let retryHint = "";
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const prompt = buildRevisionPrompt(
+      name,
+      transcript,
+      original,
+      note,
+      mode,
+      retryHint
+    );
+    const raw = await completeText({
+      systemInstruction,
+      userPrompt: prompt,
+      maxAttempts: 2,
+    });
+    const reply = formatBotReply(raw);
+    if (!reply || reply.length < 4) {
+      retryHint =
+        "התשובה הקודמת ריקה או קצרה מדי. כתוב הודעה מלאה ושונה מההודעה השגויה.";
+      continue;
+    }
+    if (reply === original) {
+      retryHint =
+        "התשובה זהה להודעה השגויה. כתוב משהו **שונה** שמיישם את ההערה.";
+      continue;
+    }
+    if (revisedRepeatsPriorQuestion(reply, priorMessages)) {
+      retryHint =
+        "התשובה עדיין חזרה על שאלה שכבר נשאלה בשיחה. כתוב שאלה **אחרת** או תגובה שממשיכה הלאה בלי לשאול שוב.";
+      continue;
+    }
+    return reply;
+  }
+
+  return ruleBasedRevisionFallback(priorMessages, original);
+}
+
+function ruleBasedRevisionFallback(priorMessages, wrongMessage) {
+  const original = String(wrongMessage || "").trim();
+  const hasUser = priorMessages.some((m) => m.role === "user");
+  if (hasUser && /מאיזה תחום|מאיזו תחום/iu.test(original)) {
+    return "מגניב! איך קוראים לעסק?";
+  }
+  if (hasUser && /איך קוראים לעסק|שם העסק/iu.test(original)) {
+    return "אחלה, ומאיזה עיר אתה?";
+  }
+  return original;
+}
+
 function historyStartingWithUser(history) {
   let i = 0;
   while (i < history.length && history[i].role !== "user") i++;
@@ -191,18 +289,24 @@ async function getReply(phone, incomingText) {
 
   const history = conversations.get(phone);
   const histForChat = historyStartingWithUser(history);
+  const config = await getAiAgentConfig();
+  const systemInstruction = resolveInboundSystemPrompt(config);
 
   const maxAttempts = 5;
   let lastErr;
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    const chat = buildModel().startChat({ history: histForChat });
     try {
-      const result = await chat.sendMessage(incomingText);
-      const reply = safeResponseText(result);
+      const raw = await chatText({
+        systemInstruction,
+        history: histForChat,
+        userMessage: incomingText,
+        maxAttempts: 1,
+      });
+      const reply = formatBotReply(raw);
 
       if (!reply) {
-        console.warn("⚠️ Gemini החזיר תשובה ריקה — מנסה שוב");
+        console.warn("⚠️ המודל החזיר תשובה ריקה — מנסה שוב");
         continue;
       }
 
@@ -218,17 +322,8 @@ async function getReply(phone, incomingText) {
       return reply;
     } catch (err) {
       lastErr = err;
-      if (!isTransientGeminiError(err) || attempt === maxAttempts - 1) {
-        throw err;
-      }
-      let delayMs = parseRetryDelayMs(err);
-      if (delayMs == null) {
-        delayMs = Math.min(60_000, 4000 * (attempt + 1));
-      }
-      console.warn(
-        `⚠️ Gemini זמני לא זמין — ממתין ${Math.round(delayMs / 1000)}s, ניסיון ${attempt + 2}/${maxAttempts}`
-      );
-      await sleep(delayMs);
+      if (attempt === maxAttempts - 1) throw err;
+      console.warn(`⚠️ ניסיון ${attempt + 2}/${maxAttempts} אחרי שגיאה`);
     }
   }
 
@@ -236,65 +331,28 @@ async function getReply(phone, incomingText) {
   return "רגע, אני בודקת ואחזור אלייך עם תשובה מדויקת 🙂";
 }
 
-// הודעת פתיחה — נשלחת כשמתחילים שיחה יזומה (outbound)
-function getOpeningMessage(name) {
-  const firstName = name ? name.split(" ")[0] : "";
+async function getOpeningMessage(name) {
+  const config = await getAiAgentConfig();
+  const firstName = name ? String(name).split(" ")[0] : "";
   const greeting = firstName ? `שלום ${firstName}` : "שלום";
-  return `${greeting}, אני אליה מצוות טורי 🙂 ראיתי שהשארת פרטים והתעניינת באפליקציה. מאיזה תחום אתה מגיע?`;
+  const template =
+    config.inbound?.openingTemplate ||
+    "{greeting}, אני אליה מצוות טורי 🙂 ראיתי שהשארת פרטים והתעניינת באפליקציה. מאיזה תחום אתה מגיע?";
+  return template
+    .replace(/\{greeting\}/g, greeting)
+    .replace(/\{name\}/g, firstName);
 }
 
-function getFirstLeadMessage(messageName) {
+async function getFirstLeadMessage(messageName) {
+  const config = await getAiAgentConfig();
   const name = String(messageName || "").trim();
+  const template =
+    config.outbound?.firstMessageTemplate ||
+    "היי {name} מה שלומך ?\nהבנתי שאת בונת ציפורניים , זה נכון ?";
   const greeting = name ? `היי ${name}` : "היי";
-  return `${greeting} מה שלומך ?\nהבנתי שאת בונת ציפורניים , זה נכון ?`;
+  return template.replace(/\{name\}/g, name).replace(/\{greeting\}/g, greeting);
 }
 
-function buildProactiveSystemPrompt() {
-  const callbackPhrase = getCallbackPhrase();
-  return `את אליה, נציגה מצוות Tori. את מנהלת שיחת וואטסאפ יזומה עם בונת ציפורניים.
-ההודעה הראשונה שכבר נשלחה אליה הייתה: "היי, מה שלומך? הבנתי שאת בונה ציפורניים, זה נכון?"
-
-בכל פנייה תקבלי את **תמליל השיחה המלא** (ההודעות שלך מסומנות "אליה", של הלקוחה "לקוחה"). קראי את כל השיחה והגיבי אך ורק להודעה האחרונה של הלקוחה, לפי ההקשר.
-
-**מה אנחנו מציעים:** אפליקציה אישית וממותגת לעסק לניהול תורים ולקוחות (כל הפרטים בבסיס הידע למטה).
-
-**מטרת השיחה (לפי הסדר):**
-1. להבין אם הלקוחה מעוניינת לשמוע על האפליקציה.
-2. לענות בקצרה, ענייני ואנושי על כל שאלה שהיא שואלת.
-3. אם היא מתעניינת — לתאם איתה שיחת טלפון קצרה שבה נציג יסביר לעומק. הניסוח המדויק לפי השעה: "${callbackPhrase}".
-4. אם היא לא מעוניינת — לאחל יום טוב ולסיים יפה, בלי לשכנע.
-
-**איך לנהל את השיחה (שלבים, אבל בגמישות לפי הקצב שלה):**
-- אם היא אישרה שהיא בונה ציפורניים / ענתה משהו חיובי → הציגי בעדינות שיש לנו אפליקציה אישית לבונות ציפורניים לניהול תורים ולקוחות, ושאלי אם זה מעניין אותה.
-- אם ענתה בשלילה לשאלה הראשונה ("לא", "ממש לא", "טעות", "לא נכון") → "הבנתי, סליחה על ההפרעה! בהצלחה ויום טוב 🙂" וסיימי. אל תציעי כלום.
-- אם היא שואלת שאלה (מחיר, איך זה עובד, מה זה, מי אתם, מאיפה השגתם את המספר) → עני ישירות וקצר לפי בסיס הידע, ואז הזיזי בעדינות לכיוון תיאום שיחה.
-- אם הביעה עניין ("כן", "מעניין", "ספרי עוד", "כמה זה עולה") → אחרי שעניתי, הציעי לתאם שיחת טלפון קצרה והשתמשי בניסוח: "${callbackPhrase}". אפשר גם לשאול מתי נוח לה.
-- אם אחרי ההצעה היא לא מעוניינת → "בסדר גמור, בהצלחה ותודה! יום טוב 🙂" בלי לדחוף.
-
-**חוקי ברזל:**
-1. עני **רק** כשהלקוחה כתבה. אסור לשלוח מעקב, תזכורת או "רק לוודא".
-2. השאלה "את בונה ציפורניים?" כבר נשאלה — **אסור לשאול אותה שוב** בשום ניסוח.
-3. שאלה אחת לכל היותר בכל הודעה.
-4. אל תשני את הניסוח של זמן החזרת הנציג — השתמשי בדיוק ב: "${callbackPhrase}".
-5. **אם הלקוחה שואלת שאלה על האפליקציה / Tori והתשובה אינה מופיעה בבסיס הידע — אסור לנחש ואסור להמציא.** אל תעני כלום, פשוט כתבי בדיוק: __NO_ANSWER__ (וכלום מלבד זה). זה רק לשאלות על המוצר שאין להן תשובה בבסיס הידע — לא להודעות רגילות כמו "כן", "תודה", "אוקיי".
-
-${WHATSAPP_STYLE}
-
-**בסיס הידע (רק מידע זה — אל תמציאי):**
----
-${knowledgeBase}
----`;
-}
-
-function buildProactiveModel() {
-  return genAI.getGenerativeModel({
-    model: GEMINI_MODEL,
-    systemInstruction: buildProactiveSystemPrompt(),
-    generationConfig: GENERATION_CONFIG,
-  });
-}
-
-/** תמליל מלא לשליחה למודל — כולל כל הודעות הבוט והלקוחה */
 function formatProactiveTranscript(messages) {
   return messages
     .filter((m) => ["user", "bot", "human_agent"].includes(m.role))
@@ -316,28 +374,115 @@ ${transcript}
 כתבי את התשובה הבאה של אליה להודעה האחרונה של הלקוחה.
 חובה: הודעה אחת קצרה (5–15 מילים), עניינית, בסגנון וואטסאפ ישראלי. רק את תוכן ההודעה — בלי תווית ובלי הסברים.`;
 
+  const config = await getAiAgentConfig();
+  const systemInstruction = resolveOutboundSystemPrompt(config);
+
   const maxAttempts = 5;
   let lastErr;
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     try {
-      const result = await buildProactiveModel().generateContent(prompt);
-      const reply = safeResponseText(result);
+      const raw = await completeText({
+        systemInstruction,
+        userPrompt: prompt,
+        maxAttempts: 1,
+      });
+      const reply = formatBotReply(raw);
       if (reply) return reply;
-      console.warn("⚠️ Gemini (שיחה יזומה) החזיר תשובה ריקה — מנסה שוב");
+      console.warn("⚠️ (שיחה יזומה) תשובה ריקה — מנסה שוב");
     } catch (err) {
       lastErr = err;
-      if (!isTransientGeminiError(err) || attempt === maxAttempts - 1) {
-        throw err;
-      }
-      let delayMs = parseRetryDelayMs(err);
-      if (delayMs == null) {
-        delayMs = Math.min(60_000, 4000 * (attempt + 1));
-      }
-      console.warn(
-        `⚠️ Gemini (שיחה יזומה) — ממתין ${Math.round(delayMs / 1000)}s, ניסיון ${attempt + 2}/${maxAttempts}`
-      );
-      await sleep(delayMs);
+      if (attempt === maxAttempts - 1) throw err;
+    }
+  }
+
+  if (lastErr) throw lastErr;
+  return "";
+}
+
+async function previewInboundPrompt() {
+  const config = await getAiAgentConfig();
+  return resolveInboundSystemPrompt(config);
+}
+
+async function previewOutboundPrompt() {
+  const config = await getAiAgentConfig();
+  return resolveOutboundSystemPrompt(config);
+}
+
+function sessionMessagesToGeminiHistory(messages) {
+  return messages.map((m) => ({
+    role: m.role === "bot" ? "model" : "user",
+    parts: [{ text: String(m.content || "") }],
+  }));
+}
+
+async function generateTrainingInboundReply(priorMessages, userText) {
+  const history = sessionMessagesToGeminiHistory(priorMessages);
+  const histForChat = historyStartingWithUser(history);
+  const config = await getAiAgentConfig();
+  const systemInstruction = resolveInboundSystemPrompt(config);
+
+  const maxAttempts = 5;
+  let lastErr;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      const raw = await chatText({
+        systemInstruction,
+        history: histForChat,
+        userMessage: userText,
+        maxAttempts: 1,
+      });
+      const reply = formatBotReply(raw);
+      if (reply) return reply;
+      console.warn("⚠️ אימון inbound — תשובה ריקה, מנסה שוב");
+    } catch (err) {
+      lastErr = err;
+      if (attempt === maxAttempts - 1) throw err;
+    }
+  }
+
+  if (lastErr) throw lastErr;
+  return "רגע, אני בודקת ואחזור אלייך עם תשובה מדויקת 🙂";
+}
+
+async function generateTrainingOutboundReply(priorMessages, userText) {
+  const dbMessages = priorMessages.map((m) => ({
+    role: m.role === "bot" ? "bot" : "user",
+    content: m.content,
+  }));
+  dbMessages.push({ role: "user", content: userText });
+
+  const transcript = formatProactiveTranscript(dbMessages);
+  const prompt = `תמליל השיחה המלא בוואטסאפ:
+
+${transcript}
+
+---
+
+כתבי את התשובה הבאה של אליה להודעה האחרונה של הלקוחה.
+חובה: הודעה אחת קצרה (5–15 מילים), עניינית, בסגנון וואטסאפ ישראלי. רק את תוכן ההודעה — בלי תווית ובלי הסברים.`;
+
+  const config = await getAiAgentConfig();
+  const systemInstruction = resolveOutboundSystemPrompt(config);
+
+  const maxAttempts = 5;
+  let lastErr;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      const raw = await completeText({
+        systemInstruction,
+        userPrompt: prompt,
+        maxAttempts: 1,
+      });
+      const reply = formatBotReply(raw);
+      if (reply) return reply;
+      console.warn("⚠️ אימון outbound — תשובה ריקה, מנסה שוב");
+    } catch (err) {
+      lastErr = err;
+      if (attempt === maxAttempts - 1) throw err;
     }
   }
 
@@ -350,5 +495,13 @@ module.exports = {
   getOpeningMessage,
   getFirstLeadMessage,
   getProactiveAIReply,
+  previewInboundPrompt,
+  previewOutboundPrompt,
+  generateTrainingInboundReply,
+  generateTrainingOutboundReply,
+  regenerateAgentReplyWithTrainerNote,
+  ruleBasedRevisionFallback,
+  isGeminiQuotaError: isQuotaError,
+  formatGeminiUserError: formatAIUserError,
   conversations,
 };

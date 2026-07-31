@@ -10,6 +10,8 @@ const {
   getOpeningMessage,
   getFirstLeadMessage,
   getProactiveAIReply,
+  isGeminiQuotaError,
+  formatGeminiUserError,
   conversations,
 } = require("./src/agent");
 const {
@@ -20,6 +22,24 @@ const {
 } = require("./src/proactiveFlow");
 const { getHumanReplyDelayMs } = require("./src/humanDelay");
 const { getAppSetting, setAppSetting } = require("./src/appSettings");
+const {
+  getAiAgentConfig,
+  setAiAgentConfig,
+  resetAiAgentConfig,
+  getDefaultAiAgentConfig,
+} = require("./src/aiAgentConfig");
+const {
+  previewInboundPrompt,
+  previewOutboundPrompt,
+} = require("./src/agent");
+const {
+  startTrainingSession,
+  trainingChat,
+  addTrainingFeedback,
+  summarizeTrainingSession,
+  applyTrainingSummary,
+  discardTrainingSession,
+} = require("./src/aiTraining");
 const {
   startHourlyNoContactScheduler,
   getIsraelTimeParts,
@@ -332,6 +352,150 @@ app.patch("/api/settings/hourly-no-contact", async (req, res) => {
   }
 });
 
+app.get("/api/ai-agent", async (_req, res) => {
+  try {
+    const config = await getAiAgentConfig();
+    const inboundPreview = await previewInboundPrompt();
+    const outboundPreview = await previewOutboundPrompt();
+    res.json({
+      config,
+      previews: { inbound: inboundPreview, outbound: outboundPreview },
+    });
+  } catch (err) {
+    console.error("❌ get ai-agent:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.patch("/api/ai-agent", async (req, res) => {
+  const body = req.body;
+  if (!body || typeof body !== "object") {
+    return res.status(400).json({ error: "חסר גוף בקשה" });
+  }
+  try {
+    const config = await setAiAgentConfig(body);
+    const inboundPreview = await previewInboundPrompt();
+    const outboundPreview = await previewOutboundPrompt();
+    console.log("✅ הגדרות נציג AI עודכנו");
+    res.json({
+      config,
+      previews: { inbound: inboundPreview, outbound: outboundPreview },
+    });
+  } catch (err) {
+    console.error("❌ patch ai-agent:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/ai-agent/reset", async (_req, res) => {
+  try {
+    const config = await resetAiAgentConfig();
+    const inboundPreview = await previewInboundPrompt();
+    const outboundPreview = await previewOutboundPrompt();
+    console.log("↩️ הגדרות נציג AI אופסו לברירת מחדל");
+    res.json({
+      config,
+      previews: { inbound: inboundPreview, outbound: outboundPreview },
+    });
+  } catch (err) {
+    console.error("❌ reset ai-agent:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get("/api/ai-agent/defaults", async (_req, res) => {
+  try {
+    const config = getDefaultAiAgentConfig();
+    res.json({ config });
+  } catch (err) {
+    console.error("❌ ai-agent defaults:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/ai-agent/training/start", async (req, res) => {
+  const mode = req.body?.mode;
+  if (mode !== "inbound" && mode !== "outbound") {
+    return res.status(400).json({ error: "mode חייב inbound או outbound" });
+  }
+  try {
+    const data = await startTrainingSession(mode);
+    res.json(data);
+  } catch (err) {
+    trainingApiError(res, err, "training start");
+  }
+});
+
+function trainingApiError(res, err, label) {
+  console.error(`❌ ${label}:`, err);
+  const status = isGeminiQuotaError(err) ? 429 : 500;
+  res.status(status).json({ error: formatGeminiUserError(err) });
+}
+
+app.post("/api/ai-agent/training/chat", async (req, res) => {
+  const { sessionId, message } = req.body || {};
+  if (!sessionId) {
+    return res.status(400).json({ error: "חסר sessionId" });
+  }
+  try {
+    const data = await trainingChat(sessionId, message);
+    res.json(data);
+  } catch (err) {
+    trainingApiError(res, err, "training chat");
+  }
+});
+
+app.post("/api/ai-agent/training/feedback", async (req, res) => {
+  const { sessionId, note } = req.body || {};
+  if (!sessionId) {
+    return res.status(400).json({ error: "חסר sessionId" });
+  }
+  try {
+    const data = addTrainingFeedback(sessionId, note);
+    res.json(data);
+  } catch (err) {
+    console.error("❌ training feedback:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/ai-agent/training/summarize", async (req, res) => {
+  const { sessionId } = req.body || {};
+  if (!sessionId) {
+    return res.status(400).json({ error: "חסר sessionId" });
+  }
+  try {
+    const data = await summarizeTrainingSession(sessionId);
+    res.json(data);
+  } catch (err) {
+    trainingApiError(res, err, "training summarize");
+  }
+});
+
+app.post("/api/ai-agent/training/apply", async (req, res) => {
+  const { sessionId, revisedPrompt } = req.body || {};
+  if (!sessionId) {
+    return res.status(400).json({ error: "חסר sessionId" });
+  }
+  try {
+    const data = await applyTrainingSummary(sessionId, revisedPrompt);
+    console.log("✅ פרומפט נציג AI עודכן מאימון");
+    res.json(data);
+  } catch (err) {
+    console.error("❌ training apply:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/ai-agent/training/discard", async (req, res) => {
+  const { sessionId } = req.body || {};
+  if (!sessionId) {
+    return res.status(400).json({ error: "חסר sessionId" });
+  }
+  discardTrainingSession(sessionId);
+  res.json({ ok: true });
+});
+
 app.get("/api/leads", async (req, res) => {
   try {
     const rows = await getLeads();
@@ -436,7 +600,7 @@ app.post("/api/leads/:id/send-first-message", async (req, res) => {
       return res.status(400).json({ error: "מספר טלפון לא תקין" });
     }
 
-    const text = getFirstLeadMessage(messageName);
+    const text = await getFirstLeadMessage(messageName);
     await upsertConversation(phone, messageName);
     await markConversationProactive(phone);
     await sendProactiveMessage(phone, messageName, getFirstLeadTemplateOptions());
@@ -663,7 +827,7 @@ app.post("/webhook", async (req, res) => {
       }
 
       if (isFirstMessage) {
-        const opening = getOpeningMessage(name);
+        const opening = await getOpeningMessage(name);
         await sendMessage(from, opening);
         conversations.set(from, [
           { role: "model", parts: [{ text: opening }] },
@@ -770,7 +934,7 @@ async function sendOpening(phone, name) {
     console.log(`↻ דילגנו על פתיחה — כבר יש שיחה עם ${normalized}`);
     return { skipped: true, phone: normalized, reason: "has_messages" };
   }
-  const opening = getOpeningMessage(name || "");
+  const opening = await getOpeningMessage(name || "");
   await upsertConversation(normalized, name || "");
   await markConversationProactive(normalized);
   await sendProactiveMessage(normalized, name || "");
