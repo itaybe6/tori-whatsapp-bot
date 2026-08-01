@@ -1020,7 +1020,77 @@ app.post("/send-opening", async (req, res) => {
 // כל ליד חדש (אחרי שהשרת עלה) מקבל הודעת פתיחה אוטומטית בוואטסאפ.
 // ============================================================
 const LEADS_POLL_MS = 5000;
+const LEAD_OPENING_CATCHUP_MS = 2 * 60 * 60 * 1000;
 let lastSeenLeadCreatedAt = null;
+
+function shouldAutoOpenLead(lead) {
+  return (
+    !AUTO_OPENING_SKIP_SOURCES.has(lead.source) &&
+    (!lead.status || lead.status === "no_contact")
+  );
+}
+
+async function trySendOpeningForLead(lead) {
+  if (!shouldAutoOpenLead(lead)) {
+    return { skipped: true, reason: "not_eligible" };
+  }
+
+  const result = await sendOpening(
+    lead.phone,
+    lead.message_name || lead.name || ""
+  );
+
+  if (result.skipped && result.reason === "has_messages") {
+    await updateLead(lead.id, { status: "message_sent" });
+    console.log(
+      `↻ ליד ${lead.id} — כבר יש שיחה עם ${result.phone}, לא נשלחה פתיחה חוזרת`
+    );
+    return result;
+  }
+
+  if (result.skipped) {
+    console.log(
+      `↻ דילגנו על פתיחה לליד ${lead.id} (${lead.phone})${result.reason ? ` — ${result.reason}` : ""}`
+    );
+    return result;
+  }
+
+  await updateLead(lead.id, { status: "message_sent" });
+  console.log(
+    `📨 הודעת פתיחה נשלחה ל-${lead.name || "ליד חדש"} (${lead.phone})`
+  );
+  return result;
+}
+
+async function catchUpMissedLeadOpenings() {
+  try {
+    const leads = await getLeads();
+    const cutoff = Date.now() - LEAD_OPENING_CATCHUP_MS;
+    let processed = 0;
+
+    for (const lead of leads) {
+      if (!shouldAutoOpenLead(lead)) continue;
+      if (!lead.created_at || new Date(lead.created_at).getTime() < cutoff) {
+        continue;
+      }
+      try {
+        await trySendOpeningForLead(lead);
+        processed++;
+      } catch (err) {
+        console.error(
+          `❌ שגיאה בשליחת פתיחה לליד ${lead.id} (${lead.phone}):`,
+          err.message
+        );
+      }
+    }
+
+    if (processed) {
+      console.log(`🔁 סונכרנו ${processed} ליד(ים) שלא קיבלו פתיחה אחרי הפעלה`);
+    }
+  } catch (err) {
+    console.warn(`⚠️ catchUpMissedLeadOpenings: ${err.message}`);
+  }
+}
 
 async function initLeadsWatcher() {
   try {
@@ -1030,6 +1100,7 @@ async function initLeadsWatcher() {
     console.log(
       `👀 מאזין ללידים חדשים מרגע: ${lastSeenLeadCreatedAt} (קיימים: ${existing.length})`
     );
+    await catchUpMissedLeadOpenings();
   } catch (err) {
     console.warn(
       `⚠️ נכשל איתחול מאזין הלידים (ננסה שוב בסיבוב הבא): ${err.message}`
@@ -1047,21 +1118,8 @@ async function pollNewLeads() {
     if (!fresh.length) return;
 
     for (const lead of fresh) {
-      if (AUTO_OPENING_SKIP_SOURCES.has(lead.source)) {
-        continue;
-      }
-      if (lead.status && lead.status !== "no_contact") {
-        continue;
-      }
       try {
-        const result = await sendOpening(
-          lead.phone,
-          lead.message_name || lead.name || ""
-        );
-        if (result.skipped) continue;
-        console.log(
-          `📨 הודעת פתיחה נשלחה ל-${lead.name || "ליד חדש"} (${lead.phone})`
-        );
+        await trySendOpeningForLead(lead);
       } catch (err) {
         console.error(
           `❌ שגיאה בשליחת פתיחה לליד ${lead.id} (${lead.phone}):`,
