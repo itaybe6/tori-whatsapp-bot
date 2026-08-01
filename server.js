@@ -126,7 +126,6 @@ function isDuplicateAgentSend(phone, message) {
   const normalizedMessage = String(message).trim();
   const key = `${phone}:${normalizedMessage}`;
   const now = Date.now();
-  const lastSentAt = recentAgentSends.get(key);
 
   for (const [storedKey, sentAt] of recentAgentSends.entries()) {
     if (now - sentAt > AGENT_SEND_DEDUPE_MS) {
@@ -134,12 +133,28 @@ function isDuplicateAgentSend(phone, message) {
     }
   }
 
-  if (lastSentAt && now - lastSentAt < AGENT_SEND_DEDUPE_MS) {
-    return true;
-  }
+  const lastSentAt = recentAgentSends.get(key);
+  return Boolean(lastSentAt && now - lastSentAt < AGENT_SEND_DEDUPE_MS);
+}
 
-  recentAgentSends.set(key, now);
-  return false;
+function markAgentSend(phone, message) {
+  const normalizedMessage = String(message).trim();
+  recentAgentSends.set(`${phone}:${normalizedMessage}`, Date.now());
+}
+
+function friendlyWhatsAppSendError(message) {
+  const text = String(message || "");
+  const expiredMatch = text.match(/Session has expired on ([^.]+)/i);
+  if (expiredMatch) {
+    return `שגיאת WhatsApp — ה-Token שב-.env פג תוקף (${expiredMatch[1]}). הדבק System User Token קבוע והפעל מחדש npm start`;
+  }
+  if (/authentication|oauth|session has expired|invalid.*token|code.*190/i.test(text)) {
+    return "שגיאת WhatsApp — ה-Token לא תקף. ודא שהדבקת System User Token קבוע ב-WHATSAPP_TOKEN והפעל מחדש npm start";
+  }
+  if (/131047|63016|24.?hour|outside.*window/i.test(text)) {
+    return "חלון 24 השעות נסגר — לא ניתן לשלוח הודעה חופשית. שלח template מאושר או המתן להודעה מהלקוח";
+  }
+  return text || "שגיאת שליחה";
 }
 
 // ============================================================
@@ -713,10 +728,11 @@ app.post("/api/send-as-agent", async (req, res) => {
     await setConversationStatus(phone, "human");
     await sendMessage(phone, text);
     await saveMessage(phone, "human_agent", text);
+    markAgentSend(phone, text);
     res.json({ success: true });
   } catch (err) {
     console.error("❌ send-as-agent:", err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: friendlyWhatsAppSendError(err.message) });
   }
 });
 

@@ -3475,22 +3475,30 @@
       const ta = document.getElementById("agentInput");
       const btn = document.getElementById("sendAgentBtn");
       const text = (ta.value || "").trim();
-      if (!selectedPhone || !text) return;
+      if (!selectedPhone) {
+        showError("בחר שיחה מהרשימה");
+        return;
+      }
+      if (!text) return;
 
       agentSendInFlight = true;
       btn.disabled = true;
       btn.textContent = "שולח…";
 
       try {
-        await api("POST", "/api/send-as-agent", {
+        const result = await api("POST", "/api/send-as-agent", {
           phone: selectedPhone,
           message: text,
         });
+        if (result && result.duplicate) {
+          showError("ההודעה כבר נשלחה לפני רגע");
+          return;
+        }
         ta.value = "";
         await loadConversations();
         await refreshDetail();
       } catch (e) {
-        showError(e.message);
+        showError(e.message || "שליחת ההודעה נכשלה");
       } finally {
         agentSendInFlight = false;
         btn.disabled = false;
