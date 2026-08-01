@@ -1,6 +1,13 @@
 const fs = require("fs");
 const path = require("path");
 const { getAppSetting, setAppSetting } = require("./appSettings");
+const {
+  DEFAULT_CONVERSATION_GUIDE,
+  DEFAULT_INBOUND_PROMPT,
+  DEFAULT_OUTBOUND_PROMPT,
+  readDefaultInboundPrompt,
+  readDefaultOutboundPrompt,
+} = require("./promptDefaults");
 
 const KNOWLEDGE_PATH = path.join(__dirname, "knowledge.md");
 
@@ -49,13 +56,17 @@ const DEFAULT_AI_AGENT_CONFIG = {
   knowledgeBase: readDefaultKnowledge(),
   whatsappStyle: DEFAULT_WHATSAPP_STYLE,
   inbound: {
+    prompt: DEFAULT_INBOUND_PROMPT,
+    conversationGuide: DEFAULT_CONVERSATION_GUIDE,
     openingTemplate:
       "{greeting}, אני אליה מצוות טורי 🙂 ראיתי שהשארת פרטים והתעניינת באפליקציה. מאיזה תחום אתה מגיע?",
     systemPromptOverride: "",
   },
   outbound: {
+    prompt: DEFAULT_OUTBOUND_PROMPT,
+    conversationGuide: DEFAULT_CONVERSATION_GUIDE,
     firstMessageTemplate:
-      "היי {name} מה שלומך ?\nהבנתי שאת בונת ציפורניים , זה נכון ?",
+      "היי {name}, כאן אליה מ-Tori 👋 ראיתי שהשארת פרטים לגבי אפליקציה אישית לניהול תורים לעסק. אשמח להסביר בקצרה איך זה עובד — מה סוג העסק שלך?",
     systemPromptOverride: "",
   },
 };
@@ -106,6 +117,21 @@ async function getAiAgentConfig() {
   if (!merged.knowledgeBase?.trim()) {
     merged.knowledgeBase = readDefaultKnowledge();
   }
+  if (!merged.inbound?.prompt?.trim()) {
+    merged.inbound.prompt = readDefaultInboundPrompt();
+  }
+  if (!merged.outbound?.prompt?.trim()) {
+    merged.outbound.prompt = readDefaultOutboundPrompt();
+  }
+  const hadEmptyPrompt =
+    stored &&
+    typeof stored === "object" &&
+    (!String(stored.inbound?.prompt || "").trim() ||
+      !String(stored.outbound?.prompt || "").trim());
+  if (hadEmptyPrompt) {
+    merged.updatedAt = new Date().toISOString();
+    await setAppSetting("ai_agent_config", merged);
+  }
   cachedConfig = merged;
   cacheTime = now;
   return merged;
@@ -123,6 +149,8 @@ async function setAiAgentConfig(updates) {
 async function resetAiAgentConfig() {
   const defaults = deepClone(DEFAULT_AI_AGENT_CONFIG);
   defaults.knowledgeBase = readDefaultKnowledge();
+  defaults.inbound.prompt = readDefaultInboundPrompt();
+  defaults.outbound.prompt = readDefaultOutboundPrompt();
   defaults.updatedAt = new Date().toISOString();
   await setAppSetting("ai_agent_config", defaults);
   invalidateAiConfigCache();
@@ -132,6 +160,8 @@ async function resetAiAgentConfig() {
 function getDefaultAiAgentConfig() {
   const defaults = deepClone(DEFAULT_AI_AGENT_CONFIG);
   defaults.knowledgeBase = readDefaultKnowledge();
+  defaults.inbound.prompt = readDefaultInboundPrompt();
+  defaults.outbound.prompt = readDefaultOutboundPrompt();
   return defaults;
 }
 

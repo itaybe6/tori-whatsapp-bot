@@ -2011,6 +2011,54 @@
       box-shadow: 0 0 0 3px rgba(69, 105, 240, 0.1);
     }
     .ai-field textarea.tall { min-height: 200px; }
+    .ai-prompt-panel {
+      flex-direction: column;
+      gap: 0.75rem;
+      min-height: calc(100vh - 260px);
+    }
+    .ai-panel.ai-prompt-panel.active {
+      display: flex;
+    }
+    .ai-prompt-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+    .ai-prompt-badge {
+      display: inline-flex;
+      align-items: center;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--primary-strong);
+      background: var(--primary-soft);
+      border: 1px solid var(--primary-border);
+      border-radius: 999px;
+      padding: 0.22rem 0.65rem;
+    }
+    .ai-prompt-badge.hidden { display: none; }
+    .ai-prompt-text {
+      display: block;
+      width: 100%;
+      flex: 1;
+      min-height: calc(100vh - 340px);
+      font-family: "Cascadia Code", "Consolas", "Heebo", monospace;
+      font-size: 0.88rem;
+      line-height: 1.65;
+      padding: 1.1rem 1.25rem;
+      border-radius: 14px;
+      background: #151c2e;
+      color: #e8edf8;
+      border: 1px solid #2a3550;
+      resize: vertical;
+      outline: none;
+      box-shadow: inset 0 2px 12px rgba(0, 0, 0, 0.25);
+    }
+    .ai-prompt-text:focus {
+      border-color: var(--primary);
+      box-shadow: inset 0 2px 12px rgba(0, 0, 0, 0.25), 0 0 0 3px rgba(69, 105, 240, 0.2);
+    }
     .ai-training-override {
       display: flex;
       align-items: center;
@@ -2555,6 +2603,8 @@
       </div>
       <div class="ai-segments" id="aiSegments">
         <button type="button" class="ai-segment-btn active" data-ai-segment="shared">בסיס ידע משותף</button>
+        <button type="button" class="ai-segment-btn" data-ai-segment="prompt-inbound">פרומפט נכנסות</button>
+        <button type="button" class="ai-segment-btn" data-ai-segment="prompt-outbound">פרומפט יוצאות</button>
         <button type="button" class="ai-segment-btn" data-ai-segment="training">אימון אינטראקטיבי</button>
       </div>
       <div class="ai-panel active" id="aiPanelShared" data-ai-panel="shared">
@@ -2578,6 +2628,20 @@
           <p class="hint">ההודעה הראשונה שנשלחת ליד מרשימת הלידים. משתנים: {name}, {greeting}.</p>
           <textarea id="aiOutboundFirst" rows="3"></textarea>
         </div>
+      </div>
+      <div class="ai-panel ai-prompt-panel" id="aiPanelPromptInbound" data-ai-panel="prompt-inbound">
+        <p class="hint">הפרומפט של שיחות נכנסות בלבד. בסיס הידע ו«ניהול שיחה מכירתי» מתווספים אוטומטית בשיחה — לא מופיעים כאן. לחץ «שמירה» למעלה לאחר שינוי.</p>
+        <div class="ai-prompt-toolbar">
+          <button type="button" class="secondary" id="aiPromptInboundReset">איפוס לברירת מחדל</button>
+        </div>
+        <textarea id="aiPromptInbound" class="ai-prompt-text" dir="rtl" spellcheck="false"></textarea>
+      </div>
+      <div class="ai-panel ai-prompt-panel" id="aiPanelPromptOutbound" data-ai-panel="prompt-outbound">
+        <p class="hint">הפרומפט של שיחות יוצאות בלבד. בסיס הידע ו«ניהול שיחה מכירתי» מתווספים אוטומטית בשיחה — לא מופיעים כאן. לחץ «שמירה» למעלה לאחר שינוי.</p>
+        <div class="ai-prompt-toolbar">
+          <button type="button" class="secondary" id="aiPromptOutboundReset">איפוס לברירת מחדל</button>
+        </div>
+        <textarea id="aiPromptOutbound" class="ai-prompt-text" dir="rtl" spellcheck="false"></textarea>
       </div>
       <div class="ai-panel ai-training-panel" id="aiPanelTraining" data-ai-panel="training">
         <p class="ai-training-intro">
@@ -3649,6 +3713,7 @@
     }
 
     // ===== AI AGENT SETTINGS =====
+    let aiDefaultPrompts = { inbound: "", outbound: "" };
     let aiOverrideInbound = "";
     let aiOverrideOutbound = "";
     let activeAiSegment = "shared";
@@ -3930,6 +3995,9 @@
         );
         resetAiTrainingUi();
         updateAiTrainingOverrideBanner();
+        if (data.appliedMode === "inbound" || data.appliedMode === "outbound") {
+          switchAiSegment(`prompt-${data.appliedMode}`);
+        }
         statusEl.textContent =
           "הפרומפט עודכן מהאימון — הנציג AI ישתמש בו מעכשיו";
         statusEl.classList.add("ok");
@@ -3958,7 +4026,7 @@
         aiOverrideInbound = "";
         aiOverrideOutbound = "";
         updateAiTrainingOverrideBanner();
-        statusEl.textContent = "הנציג חזר להשתמש בבסיס הידע";
+        statusEl.textContent = "הנציג חזר להשתמש בפרומפט האוטומטי";
         statusEl.classList.add("ok");
       } catch (e) {
         showError(e.message || String(e));
@@ -3999,7 +4067,7 @@
       if (!modes.length) return;
       document.getElementById("aiTrainingOverrideText").textContent =
         `הנציג משתמש בפרומפט שנוצר באימון עבור ${modes.join(" ו")} — ` +
-        "השינויים שתעשה בבסיס הידע לא ישפיעו עליו עד שתחזור לבסיס הידע.";
+        "שינויים בבסיס הידע לא ישפיעו עד «ביטול פרומפט מהאימון» בטאב האימון.";
     }
 
     function populateAiForm(config) {
@@ -4011,6 +4079,12 @@
         config.inbound?.openingTemplate || "";
       document.getElementById("aiOutboundFirst").value =
         config.outbound?.firstMessageTemplate || "";
+      const inboundPrompt =
+        String(config.inbound?.prompt || "").trim() || aiDefaultPrompts.inbound || "";
+      const outboundPrompt =
+        String(config.outbound?.prompt || "").trim() || aiDefaultPrompts.outbound || "";
+      document.getElementById("aiPromptInbound").value = inboundPrompt;
+      document.getElementById("aiPromptOutbound").value = outboundPrompt;
     }
 
     function collectAiForm() {
@@ -4020,9 +4094,11 @@
         whatsappStyle: document.getElementById("aiWhatsappStyle").value,
         inbound: {
           openingTemplate: document.getElementById("aiInboundOpening").value,
+          prompt: document.getElementById("aiPromptInbound").value,
         },
         outbound: {
           firstMessageTemplate: document.getElementById("aiOutboundFirst").value,
+          prompt: document.getElementById("aiPromptOutbound").value,
         },
       };
     }
@@ -4030,6 +4106,11 @@
     async function loadAiAgentSettings() {
       const statusEl = document.getElementById("aiSaveStatus");
       try {
+        const defaults = await api("GET", "/api/ai-agent/defaults");
+        aiDefaultPrompts = {
+          inbound: defaults.config?.inbound?.prompt || "",
+          outbound: defaults.config?.outbound?.prompt || "",
+        };
         const data = await api("GET", "/api/ai-agent");
         populateAiForm(data.config);
         aiOverrideInbound = String(data.config?.inbound?.systemPromptOverride || "");
@@ -4056,7 +4137,11 @@
         aiOverrideInbound = String(data.config?.inbound?.systemPromptOverride || "");
         aiOverrideOutbound = String(data.config?.outbound?.systemPromptOverride || "");
         updateAiTrainingOverrideBanner();
-        statusEl.textContent = "ההגדרות נשמרו בהצלחה";
+        statusEl.textContent =
+          activeAiSegment === "prompt-inbound" ||
+          activeAiSegment === "prompt-outbound"
+            ? "הפרומפט נשמר — הנציג AI ישתמש בו מעכשיו"
+            : "ההגדרות נשמרו בהצלחה";
         statusEl.classList.add("ok");
       } catch (e) {
         showError(e.message || String(e));
@@ -4086,12 +4171,53 @@
       }
     }
 
+    async function resetAiPromptToDefault(mode) {
+      const label = mode === "inbound" ? "נכנסות" : "יוצאות";
+      const ok = window.confirm(
+        `לאפס את פרומפט ${label} לברירת המחדל?\nהשינויים שלך יימחקו.`
+      );
+      if (!ok) return;
+      const btn = document.getElementById(
+        mode === "inbound" ? "aiPromptInboundReset" : "aiPromptOutboundReset"
+      );
+      const statusEl = document.getElementById("aiSaveStatus");
+      btn.disabled = true;
+      try {
+        const defaults = await api("GET", "/api/ai-agent/defaults");
+        const defaultPrompt =
+          mode === "inbound"
+            ? defaults.config?.inbound?.prompt || aiDefaultPrompts.inbound || ""
+            : defaults.config?.outbound?.prompt || aiDefaultPrompts.outbound || "";
+        if (!String(defaultPrompt).trim()) {
+          throw new Error("לא נמצא פרומפט ברירת מחדל — נסה להפעיל מחדש את npm start");
+        }
+        const patch =
+          mode === "inbound"
+            ? { inbound: { prompt: defaultPrompt } }
+            : { outbound: { prompt: defaultPrompt } };
+        const data = await api("PATCH", "/api/ai-agent", patch);
+        populateAiForm(data.config);
+        statusEl.textContent = `פרומפט ${label} אופס לברירת מחדל`;
+        statusEl.classList.add("ok");
+      } catch (e) {
+        showError(e.message || String(e));
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
     document.querySelectorAll(".ai-segment-btn").forEach((btn) => {
       btn.addEventListener("click", () => switchAiSegment(btn.dataset.aiSegment));
     });
     document
       .getElementById("aiTrainingOverrideClear")
       .addEventListener("click", clearAiTrainingOverride);
+    document
+      .getElementById("aiPromptInboundReset")
+      .addEventListener("click", () => resetAiPromptToDefault("inbound"));
+    document
+      .getElementById("aiPromptOutboundReset")
+      .addEventListener("click", () => resetAiPromptToDefault("outbound"));
     document.getElementById("aiAgentSave").addEventListener("click", saveAiAgentSettings);
     document.getElementById("aiAgentReset").addEventListener("click", resetAiAgentSettings);
 

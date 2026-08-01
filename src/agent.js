@@ -1,7 +1,11 @@
 const {
   getAiAgentConfig,
-  DEFAULT_WHATSAPP_STYLE,
 } = require("./aiAgentConfig");
+const {
+  DEFAULT_INBOUND_PROMPT,
+  DEFAULT_OUTBOUND_PROMPT,
+  DEFAULT_CONVERSATION_GUIDE,
+} = require("./promptDefaults");
 const {
   chatText,
   completeText,
@@ -66,66 +70,37 @@ function resolveOutboundSystemPrompt(config) {
 }
 
 /**
- * הפרומפט נבנה מבסיס הידע + סגנון וואטסאפ בלבד.
- * מה שמופיע כאן בקוד הוא רק מה שלא יכול לחיות בבסיס הידע:
- * ניסוח זמן החזרה (תלוי שעה) והסימן __NO_ANSWER__ שהקוד מזהה.
+ * הפרומפט המלא = פרומפט ייחודי (נכנסות/יוצאות) + ניהול שיחה מכירתי + בסיס ידע.
  */
-const NO_ANSWER_INSTRUCTION = `**כשאין לך תשובה:**
-שאלה על המוצר שהתשובה לה אינה בבסיס הידע? אל תמציאי ואל תנחשי — כתבי בדיוק: __NO_ANSWER__ (וכלום מלבד זה).`;
-
 function buildInboundSystemPrompt(config) {
-  const callbackPhrase = getCallbackPhrase();
-  const agentName = config.agentName || "אליה";
-  const style = config.whatsappStyle || DEFAULT_WHATSAPP_STYLE;
   const kb = config.knowledgeBase || "";
+  const prompt = String(config.inbound?.prompt || DEFAULT_INBOUND_PROMPT).trim();
+  const guide = String(
+    config.inbound?.conversationGuide || DEFAULT_CONVERSATION_GUIDE
+  ).trim();
 
-  return `את ${agentName}, נציגה מצוות Tori. את מנהלת שיחת וואטסאפ עם לקוח שהשאיר פרטים בדף נחיתה והתעניין בשירות.
+  return `${prompt}
 
-כל ההנחיות שלך — מטרות השיחה, אילו פרטים לאסוף, זרימת השיחה, הטון, ומתי להעביר לנציג אנושי — נמצאות בבסיס הידע למטה. פעלי לפיו בלבד.
+${guide}
 
-${style}
-
-**זמן החזרת נציג:**
-כשמגיע הרגע להעביר לנציג אנושי (לפי בסיס הידע), השתמשי בניסוח המדויק הזה לפי השעה הנוכחית:
-"${callbackPhrase}"
-
-דוגמה לסיום: "מעולה, רשמתי הכל. ${callbackPhrase} 🙏"
-
-חשוב: אל תשני את הניסוח של זמן החזרה — תשתמשי בדיוק במה שכתוב למעלה.
-
-${NO_ANSWER_INSTRUCTION}
-
-**בסיס הידע שלך (השתמשי רק במידע הזה):**
+**בסיס הידע הרשמי של Tori:**
 ---
 ${kb}
----
-
-**אל תמציאי מידע שאינו בבסיס הידע.**`;
+---`;
 }
 
 function buildOutboundSystemPrompt(config) {
-  const callbackPhrase = getCallbackPhrase();
-  const agentName = config.agentName || "אליה";
-  const style = config.whatsappStyle || DEFAULT_WHATSAPP_STYLE;
   const kb = config.knowledgeBase || "";
+  const prompt = String(config.outbound?.prompt || DEFAULT_OUTBOUND_PROMPT).trim();
+  const guide = String(
+    config.outbound?.conversationGuide || DEFAULT_CONVERSATION_GUIDE
+  ).trim();
 
-  return `את ${agentName}, נציגה מצוות Tori. את מנהלת שיחת וואטסאפ יזומה מול לקוחה פוטנציאלית שקיבלה מאיתנו הודעה ראשונה.
+  return `${prompt}
 
-בכל פנייה תקבלי את **תמליל השיחה המלא** (ההודעות שלך מסומנות "${agentName}", של הלקוחה "לקוחה"). קראי את כל השיחה והגיבי אך ורק להודעה האחרונה של הלקוחה, לפי ההקשר.
+${guide}
 
-עני **רק** כשהלקוחה כתבה — אסור לשלוח הודעת מעקב או תזכורת ביוזמתך. אל תשאלי שוב שאלה שכבר נשאלה בתמליל.
-
-כל ההנחיות שלך — מטרות השיחה, זרימת השיחה, הטון, ומתי להעביר לנציג אנושי — נמצאות בבסיס הידע למטה. פעלי לפיו בלבד.
-
-${style}
-
-**זמן החזרת נציג:**
-אם היא מתעניינת — הניסוח המדויק לפי השעה: "${callbackPhrase}".
-אל תשני את הניסוח הזה.
-
-${NO_ANSWER_INSTRUCTION}
-
-**בסיס הידע (רק מידע זה — אל תמציאי):**
+**בסיס הידע הרשמי של Tori:**
 ---
 ${kb}
 ---`;
