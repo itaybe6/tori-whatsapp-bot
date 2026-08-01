@@ -2011,69 +2011,29 @@
       box-shadow: 0 0 0 3px rgba(69, 105, 240, 0.1);
     }
     .ai-field textarea.tall { min-height: 200px; }
-    .ai-preview-panel {
-      width: 100%;
+    .ai-training-override {
       display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
-      min-height: calc(100vh - 260px);
-    }
-    .ai-preview-badge {
-      display: inline-flex;
       align-items: center;
-      gap: 0.35rem;
-      font-size: 0.72rem;
-      font-weight: 700;
-      color: var(--primary-strong);
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
       background: var(--primary-soft);
       border: 1px solid var(--primary-border);
-      border-radius: 999px;
-      padding: 0.22rem 0.65rem;
-      margin-inline-start: 0.5rem;
+      border-radius: 12px;
+      padding: 0.75rem 1rem;
+      margin-bottom: 1rem;
     }
-    .ai-preview-badge.hidden { display: none; }
-    #aiPreviewText {
+    .ai-training-override.hidden { display: none; }
+    .ai-training-override strong {
       display: block;
-      width: 100%;
-      flex: 1;
-      min-height: calc(100vh - 320px);
-      font-family: "Cascadia Code", "Consolas", "Heebo", monospace;
-      font-size: 0.88rem;
-      line-height: 1.65;
-      padding: 1.1rem 1.25rem;
-      border-radius: 14px;
-      background: #151c2e;
-      color: #e8edf8;
-      border: 1px solid #2a3550;
-      resize: vertical;
-      outline: none;
-      box-shadow: inset 0 2px 12px rgba(0, 0, 0, 0.25);
-    }
-    #aiPreviewText:focus {
-      border-color: var(--primary);
-      box-shadow: inset 0 2px 12px rgba(0, 0, 0, 0.25), 0 0 0 3px rgba(69, 105, 240, 0.2);
-    }
-    .ai-preview-tabs {
-      display: flex;
-      gap: 0.35rem;
-      margin-bottom: 0.75rem;
-    }
-    .ai-preview-tab {
-      font: inherit;
-      cursor: pointer;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 0.35rem 0.85rem;
-      background: var(--surface);
-      color: var(--muted);
-      font-size: 0.8rem;
-      font-weight: 600;
-      box-shadow: none;
-    }
-    .ai-preview-tab.active {
-      background: var(--primary-soft);
+      font-size: 0.85rem;
       color: var(--primary-strong);
-      border-color: var(--primary-border);
+    }
+    .ai-training-override p {
+      margin: 0.2rem 0 0;
+      font-size: 0.78rem;
+      color: var(--muted);
+      line-height: 1.5;
     }
   .ai-panel.ai-training-panel.active { display: block; }
     .ai-training-intro {
@@ -2582,7 +2542,7 @@
       <header class="ai-header">
         <div>
           <h1>נציג AI</h1>
-          <p>הגדר מענה שונה להודעות נכנסות (מדף נחיתה) ולהודעות יוצאות (לידים)</p>
+          <p>בסיס הידע הוא המקור היחיד להתנהגות הנציג — בשיחות נכנסות ויוצאות כאחד</p>
         </div>
         <div class="ai-header-actions">
           <button type="button" class="secondary" id="aiAgentReset">איפוס לברירת מחדל</button>
@@ -2595,15 +2555,12 @@
       </div>
       <div class="ai-segments" id="aiSegments">
         <button type="button" class="ai-segment-btn active" data-ai-segment="shared">בסיס ידע משותף</button>
-        <button type="button" class="ai-segment-btn" data-ai-segment="inbound">הודעות נכנסות</button>
-        <button type="button" class="ai-segment-btn" data-ai-segment="outbound">הודעות יוצאות</button>
-        <button type="button" class="ai-segment-btn" data-ai-segment="preview">תצוגת פרומפט</button>
         <button type="button" class="ai-segment-btn" data-ai-segment="training">אימון אינטראקטיבי</button>
       </div>
       <div class="ai-panel active" id="aiPanelShared" data-ai-panel="shared">
         <div class="ai-field">
-          <label for="aiKnowledgeBase">בסיס הידע — מה הנציג יכול לספר ללקוחות</label>
-          <p class="hint">מידע על Tori, מחירים, פיצ'רים. הנציג משתמש רק במה שכתוב כאן.</p>
+          <label for="aiKnowledgeBase">בסיס הידע — כל מה שהנציג יודע ואיך הוא מתנהג</label>
+          <p class="hint">מידע על Tori, מחירים, פיצ'רים, וגם ההנחיות להתנהגות: מטרות השיחה, אילו פרטים לאסוף, טון, ומתי להעביר לנציג. הנציג משתמש רק במה שכתוב כאן.</p>
           <textarea id="aiKnowledgeBase" class="tall" rows="14"></textarea>
         </div>
         <div class="ai-field">
@@ -2611,75 +2568,16 @@
           <p class="hint">חוקי אורך, טון קצר, דוגמאות — חל על נכנסות ויוצאות.</p>
           <textarea id="aiWhatsappStyle" rows="8"></textarea>
         </div>
-      </div>
-      <div class="ai-panel" id="aiPanelInbound" data-ai-panel="inbound">
         <div class="ai-field">
-          <label for="aiInboundIntro">מי הנציג ומה הקשר</label>
-          <p class="hint">לקוח השאיר פרטים בדף נחיתה — שיחה נכנסת.</p>
-          <textarea id="aiInboundIntro" rows="4"></textarea>
-        </div>
-        <div class="ai-field">
-          <label for="aiInboundGoals">מטרות השיחה</label>
-          <textarea id="aiInboundGoals" rows="5"></textarea>
-        </div>
-        <div class="ai-field">
-          <label for="aiInboundFlow">זרימת שיחה</label>
-          <textarea id="aiInboundFlow" rows="6"></textarea>
-        </div>
-        <div class="ai-field">
-          <label for="aiInboundTone">סגנון דיבור וטון</label>
-          <textarea id="aiInboundTone" rows="6"></textarea>
-        </div>
-        <div class="ai-field">
-          <label for="aiInboundSales">שיטת מכירה</label>
-          <textarea id="aiInboundSales" rows="5"></textarea>
-        </div>
-        <div class="ai-field">
-          <label for="aiInboundOpening">הודעת פתיחה (תבנית)</label>
-          <p class="hint">משתנים: {greeting} — ברכה עם שם, {name} — שם פרטי.</p>
+          <label for="aiInboundOpening">הודעת פתיחה — שיחה נכנסת (דף נחיתה)</label>
+          <p class="hint">ההודעה הראשונה שנשלחת ללקוח שהשאיר פרטים. משתנים: {greeting} — ברכה עם שם, {name} — שם פרטי.</p>
           <textarea id="aiInboundOpening" rows="3"></textarea>
         </div>
-      </div>
-      <div class="ai-panel" id="aiPanelOutbound" data-ai-panel="outbound">
         <div class="ai-field">
-          <label for="aiOutboundIntro">מי הנציג ומה הקשר</label>
-          <p class="hint">שיחה יזומה ללידים (ייצוא / Excel).</p>
-          <textarea id="aiOutboundIntro" rows="5"></textarea>
-        </div>
-        <div class="ai-field">
-          <label for="aiOutboundGoals">מטרות השיחה</label>
-          <textarea id="aiOutboundGoals" rows="6"></textarea>
-        </div>
-        <div class="ai-field">
-          <label for="aiOutboundFlow">זרימת שיחה</label>
-          <textarea id="aiOutboundFlow" rows="6"></textarea>
-        </div>
-        <div class="ai-field">
-          <label for="aiOutboundTone">סגנון דיבור וטון</label>
-          <textarea id="aiOutboundTone" rows="5"></textarea>
-        </div>
-        <div class="ai-field">
-          <label for="aiOutboundSales">שיטת מכירה</label>
-          <textarea id="aiOutboundSales" rows="5"></textarea>
-        </div>
-        <div class="ai-field">
-          <label for="aiOutboundRules">חוקי ברזל</label>
-          <textarea id="aiOutboundRules" rows="6"></textarea>
-        </div>
-        <div class="ai-field">
-          <label for="aiOutboundFirst">הודעה ראשונה לליד (תבנית)</label>
-          <p class="hint">משתנים: {name}, {greeting}.</p>
+          <label for="aiOutboundFirst">הודעה ראשונה לליד — שיחה יוצאת</label>
+          <p class="hint">ההודעה הראשונה שנשלחת ליד מרשימת הלידים. משתנים: {name}, {greeting}.</p>
           <textarea id="aiOutboundFirst" rows="3"></textarea>
         </div>
-      </div>
-      <div class="ai-panel ai-preview-panel" id="aiPanelPreview" data-ai-panel="preview">
-        <p class="hint">ערוך כאן את הפרומפט המלא — מה שתשמור כאן יישמש ישירות לנציג AI (עוקף את השדות בטאבים האחרים). לחץ «שמירה» למעלה.</p>
-        <div class="ai-preview-tabs">
-          <button type="button" class="ai-preview-tab active" data-ai-preview="inbound">נכנסות</button>
-          <button type="button" class="ai-preview-tab" data-ai-preview="outbound">יוצאות</button>
-          <span class="ai-preview-badge hidden" id="aiPreviewOverrideBadge">עריכה ישירה פעילה</span>
-        </div>
-        <textarea id="aiPreviewText" dir="rtl" spellcheck="false"></textarea>
       </div>
       <div class="ai-panel ai-training-panel" id="aiPanelTraining" data-ai-panel="training">
         <p class="ai-training-intro">
@@ -2687,6 +2585,13 @@
           <strong>*הערה כאן*</strong> (כוכבית בהתחלה ובסוף). המערכת תאשר שהבינה ולא תמשיך את השיחה.
           אפשר גם הערות כלליות בשדה למטה. בסיום — סיכום ועדכון פרומפט.
         </p>
+        <div class="ai-training-override hidden" id="aiTrainingOverrideBanner">
+          <div>
+            <strong>פרומפט מאימון פעיל</strong>
+            <p id="aiTrainingOverrideText"></p>
+          </div>
+          <button type="button" class="secondary" id="aiTrainingOverrideClear">חזרה לבסיס הידע</button>
+        </div>
         <div class="ai-training-layout">
           <div class="ai-training-main">
             <div class="ai-training-toolbar">
@@ -3744,11 +3649,9 @@
     }
 
     // ===== AI AGENT SETTINGS =====
-    let aiBuiltPreviews = { inbound: "", outbound: "" };
     let aiOverrideInbound = "";
     let aiOverrideOutbound = "";
     let activeAiSegment = "shared";
-    let activeAiPreview = "inbound";
     let aiSaveInFlight = false;
     let aiTrainingSessionId = null;
     let aiTrainingMode = "outbound";
@@ -4019,28 +3922,48 @@
           revisedPrompt: revised,
         });
         populateAiForm(data.config);
-        aiBuiltPreviews = data.previews || {};
         aiOverrideInbound = String(
           data.config?.inbound?.systemPromptOverride || ""
         );
         aiOverrideOutbound = String(
           data.config?.outbound?.systemPromptOverride || ""
         );
-        activeAiPreview = data.appliedMode || aiTrainingMode;
-        document.querySelectorAll(".ai-preview-tab").forEach((b) => {
-          b.classList.toggle("active", b.dataset.aiPreview === activeAiPreview);
-        });
         resetAiTrainingUi();
-        switchAiSegment("preview");
-        updateAiPreviewDisplay();
+        updateAiTrainingOverrideBanner();
         statusEl.textContent =
-          "הפרומפט עודכן מהאימון — הנציג AI ישתמש בו מעכשיו (תצוגת פרומפט)";
+          "הפרומפט עודכן מהאימון — הנציג AI ישתמש בו מעכשיו";
         statusEl.classList.add("ok");
       } catch (e) {
         showError(e.message || String(e));
       } finally {
         btn.disabled = false;
         btn.textContent = "אשר ועדכן פרומפט";
+      }
+    }
+
+    async function clearAiTrainingOverride() {
+      const ok = window.confirm(
+        "לחזור לפרומפט שנבנה מבסיס הידע?\nהפרומפט שנוצר באימון יימחק."
+      );
+      if (!ok) return;
+      const btn = document.getElementById("aiTrainingOverrideClear");
+      const statusEl = document.getElementById("aiSaveStatus");
+      btn.disabled = true;
+      try {
+        const data = await api("PATCH", "/api/ai-agent", {
+          inbound: { systemPromptOverride: "" },
+          outbound: { systemPromptOverride: "" },
+        });
+        populateAiForm(data.config);
+        aiOverrideInbound = "";
+        aiOverrideOutbound = "";
+        updateAiTrainingOverrideBanner();
+        statusEl.textContent = "הנציג חזר להשתמש בבסיס הידע";
+        statusEl.classList.add("ok");
+      } catch (e) {
+        showError(e.message || String(e));
+      } finally {
+        btn.disabled = false;
       }
     }
 
@@ -4052,28 +3975,7 @@
       }
     }
 
-    function persistPreviewDraft() {
-      const el = document.getElementById("aiPreviewText");
-      if (!el) return;
-      if (activeAiPreview === "outbound") {
-        aiOverrideOutbound = el.value;
-      } else {
-        aiOverrideInbound = el.value;
-      }
-    }
-
-    function updateAiPreviewBadge() {
-      const badge = document.getElementById("aiPreviewOverrideBadge");
-      if (!badge) return;
-      const hasOverride =
-        activeAiPreview === "outbound"
-          ? Boolean(String(aiOverrideOutbound || "").trim())
-          : Boolean(String(aiOverrideInbound || "").trim());
-      badge.classList.toggle("hidden", !hasOverride);
-    }
-
     function switchAiSegment(segment) {
-      if (activeAiSegment === "preview") persistPreviewDraft();
       activeAiSegment = segment;
       document.querySelectorAll(".ai-segment-btn").forEach((btn) => {
         btn.classList.toggle("active", btn.dataset.aiSegment === segment);
@@ -4081,24 +3983,23 @@
       document.querySelectorAll(".ai-panel").forEach((panel) => {
         panel.classList.toggle("active", panel.dataset.aiPanel === segment);
       });
-      if (segment === "preview") updateAiPreviewDisplay();
     }
 
-    function updateAiPreviewDisplay() {
-      const el = document.getElementById("aiPreviewText");
-      if (!el) return;
-      if (activeAiPreview === "outbound") {
-        el.value =
-          aiOverrideOutbound ||
-          aiBuiltPreviews.outbound ||
-          "";
-      } else {
-        el.value =
-          aiOverrideInbound ||
-          aiBuiltPreviews.inbound ||
-          "";
-      }
-      updateAiPreviewBadge();
+    /**
+     * האימון האינטראקטיבי כותב פרומפט מלא שעוקף את בסיס הידע.
+     * הבאנר מוודא שזה לא קורה בשקט ומאפשר לחזור לבסיס הידע.
+     */
+    function updateAiTrainingOverrideBanner() {
+      const banner = document.getElementById("aiTrainingOverrideBanner");
+      if (!banner) return;
+      const modes = [];
+      if (String(aiOverrideInbound || "").trim()) modes.push("הודעות נכנסות");
+      if (String(aiOverrideOutbound || "").trim()) modes.push("הודעות יוצאות");
+      banner.classList.toggle("hidden", modes.length === 0);
+      if (!modes.length) return;
+      document.getElementById("aiTrainingOverrideText").textContent =
+        `הנציג משתמש בפרומפט שנוצר באימון עבור ${modes.join(" ו")} — ` +
+        "השינויים שתעשה בבסיס הידע לא ישפיעו עליו עד שתחזור לבסיס הידע.";
     }
 
     function populateAiForm(config) {
@@ -4106,60 +4007,23 @@
       document.getElementById("aiAgentName").value = config.agentName || "";
       document.getElementById("aiKnowledgeBase").value = config.knowledgeBase || "";
       document.getElementById("aiWhatsappStyle").value = config.whatsappStyle || "";
-      const inb = config.inbound || {};
-      document.getElementById("aiInboundIntro").value = inb.introduction || "";
-      document.getElementById("aiInboundGoals").value = inb.goals || "";
-      document.getElementById("aiInboundFlow").value = inb.conversationFlow || "";
-      document.getElementById("aiInboundTone").value = inb.toneAndStyle || "";
-      document.getElementById("aiInboundSales").value = inb.salesMethod || "";
-      document.getElementById("aiInboundOpening").value = inb.openingTemplate || "";
-      const out = config.outbound || {};
-      document.getElementById("aiOutboundIntro").value = out.introduction || "";
-      document.getElementById("aiOutboundGoals").value = out.goals || "";
-      document.getElementById("aiOutboundFlow").value = out.conversationFlow || "";
-      document.getElementById("aiOutboundTone").value = out.toneAndStyle || "";
-      document.getElementById("aiOutboundSales").value = out.salesMethod || "";
-      document.getElementById("aiOutboundRules").value = out.hardRules || "";
-      document.getElementById("aiOutboundFirst").value = out.firstMessageTemplate || "";
+      document.getElementById("aiInboundOpening").value =
+        config.inbound?.openingTemplate || "";
+      document.getElementById("aiOutboundFirst").value =
+        config.outbound?.firstMessageTemplate || "";
     }
 
     function collectAiForm() {
-      if (activeAiSegment === "preview") persistPreviewDraft();
-
-      const inboundFields = {
-        introduction: document.getElementById("aiInboundIntro").value,
-        goals: document.getElementById("aiInboundGoals").value,
-        conversationFlow: document.getElementById("aiInboundFlow").value,
-        toneAndStyle: document.getElementById("aiInboundTone").value,
-        salesMethod: document.getElementById("aiInboundSales").value,
-        openingTemplate: document.getElementById("aiInboundOpening").value,
-      };
-      const outboundFields = {
-        introduction: document.getElementById("aiOutboundIntro").value,
-        goals: document.getElementById("aiOutboundGoals").value,
-        conversationFlow: document.getElementById("aiOutboundFlow").value,
-        toneAndStyle: document.getElementById("aiOutboundTone").value,
-        salesMethod: document.getElementById("aiOutboundSales").value,
-        hardRules: document.getElementById("aiOutboundRules").value,
-        firstMessageTemplate: document.getElementById("aiOutboundFirst").value,
-      };
-
-      if (activeAiSegment === "preview") {
-        inboundFields.systemPromptOverride = aiOverrideInbound;
-        outboundFields.systemPromptOverride = aiOverrideOutbound;
-      } else {
-        inboundFields.systemPromptOverride = "";
-        outboundFields.systemPromptOverride = "";
-        aiOverrideInbound = "";
-        aiOverrideOutbound = "";
-      }
-
       return {
         agentName: document.getElementById("aiAgentName").value.trim(),
         knowledgeBase: document.getElementById("aiKnowledgeBase").value,
         whatsappStyle: document.getElementById("aiWhatsappStyle").value,
-        inbound: inboundFields,
-        outbound: outboundFields,
+        inbound: {
+          openingTemplate: document.getElementById("aiInboundOpening").value,
+        },
+        outbound: {
+          firstMessageTemplate: document.getElementById("aiOutboundFirst").value,
+        },
       };
     }
 
@@ -4168,10 +4032,9 @@
       try {
         const data = await api("GET", "/api/ai-agent");
         populateAiForm(data.config);
-        aiBuiltPreviews = data.previews || { inbound: "", outbound: "" };
         aiOverrideInbound = String(data.config?.inbound?.systemPromptOverride || "");
         aiOverrideOutbound = String(data.config?.outbound?.systemPromptOverride || "");
-        updateAiPreviewDisplay();
+        updateAiTrainingOverrideBanner();
         if (statusEl) statusEl.textContent = "";
       } catch (e) {
         showError(e.message || String(e));
@@ -4190,14 +4053,10 @@
       try {
         const data = await api("PATCH", "/api/ai-agent", collectAiForm());
         populateAiForm(data.config);
-        aiBuiltPreviews = data.previews || {};
         aiOverrideInbound = String(data.config?.inbound?.systemPromptOverride || "");
         aiOverrideOutbound = String(data.config?.outbound?.systemPromptOverride || "");
-        updateAiPreviewDisplay();
-        statusEl.textContent =
-          activeAiSegment === "preview"
-            ? "הפרומפט נשמר — הנציג AI ישתמש בו מעכשיו"
-            : "ההגדרות נשמרו בהצלחה";
+        updateAiTrainingOverrideBanner();
+        statusEl.textContent = "ההגדרות נשמרו בהצלחה";
         statusEl.classList.add("ok");
       } catch (e) {
         showError(e.message || String(e));
@@ -4217,10 +4076,9 @@
       try {
         const data = await api("POST", "/api/ai-agent/reset");
         populateAiForm(data.config);
-        aiBuiltPreviews = data.previews || {};
         aiOverrideInbound = "";
         aiOverrideOutbound = "";
-        updateAiPreviewDisplay();
+        updateAiTrainingOverrideBanner();
         statusEl.textContent = "אופס לברירת מחדל";
         statusEl.classList.add("ok");
       } catch (e) {
@@ -4231,20 +4089,9 @@
     document.querySelectorAll(".ai-segment-btn").forEach((btn) => {
       btn.addEventListener("click", () => switchAiSegment(btn.dataset.aiSegment));
     });
-    document.querySelectorAll(".ai-preview-tab").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        persistPreviewDraft();
-        activeAiPreview = btn.dataset.aiPreview;
-        document.querySelectorAll(".ai-preview-tab").forEach((b) => {
-          b.classList.toggle("active", b.dataset.aiPreview === activeAiPreview);
-        });
-        updateAiPreviewDisplay();
-      });
-    });
-    document.getElementById("aiPreviewText").addEventListener("input", () => {
-      persistPreviewDraft();
-      updateAiPreviewBadge();
-    });
+    document
+      .getElementById("aiTrainingOverrideClear")
+      .addEventListener("click", clearAiTrainingOverride);
     document.getElementById("aiAgentSave").addEventListener("click", saveAiAgentSettings);
     document.getElementById("aiAgentReset").addEventListener("click", resetAiAgentSettings);
 

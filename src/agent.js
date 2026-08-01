@@ -65,33 +65,37 @@ function resolveOutboundSystemPrompt(config) {
   return buildOutboundSystemPrompt(config);
 }
 
+/**
+ * הפרומפט נבנה מבסיס הידע + סגנון וואטסאפ בלבד.
+ * מה שמופיע כאן בקוד הוא רק מה שלא יכול לחיות בבסיס הידע:
+ * ניסוח זמן החזרה (תלוי שעה) והסימן __NO_ANSWER__ שהקוד מזהה.
+ */
+const NO_ANSWER_INSTRUCTION = `**כשאין לך תשובה:**
+שאלה על המוצר שהתשובה לה אינה בבסיס הידע? אל תמציאי ואל תנחשי — כתבי בדיוק: __NO_ANSWER__ (וכלום מלבד זה).`;
+
 function buildInboundSystemPrompt(config) {
   const callbackPhrase = getCallbackPhrase();
-  const inbound = config.inbound || {};
+  const agentName = config.agentName || "אליה";
   const style = config.whatsappStyle || DEFAULT_WHATSAPP_STYLE;
   const kb = config.knowledgeBase || "";
 
-  return `${inbound.introduction || ""}
+  return `את ${agentName}, נציגה מצוות Tori. את מנהלת שיחת וואטסאפ עם לקוח שהשאיר פרטים בדף נחיתה והתעניין בשירות.
 
-${inbound.goals || ""}
-
-${inbound.conversationFlow || ""}
+כל ההנחיות שלך — מטרות השיחה, אילו פרטים לאסוף, זרימת השיחה, הטון, ומתי להעביר לנציג אנושי — נמצאות בבסיס הידע למטה. פעלי לפיו בלבד.
 
 ${style}
 
-${inbound.toneAndStyle || ""}
-
-${inbound.salesMethod || ""}
-
-**סיום השיחה:**
-ברגע שיש לך תחום + שם עסק + עיר, סכמי קצר עם הניסוח המדויק הזה (לפי השעה הנוכחית):
+**זמן החזרת נציג:**
+כשמגיע הרגע להעביר לנציג אנושי (לפי בסיס הידע), השתמשי בניסוח המדויק הזה לפי השעה הנוכחית:
 "${callbackPhrase}"
 
 דוגמה לסיום: "מעולה, רשמתי הכל. ${callbackPhrase} 🙏"
 
 חשוב: אל תשני את הניסוח של זמן החזרה — תשתמשי בדיוק במה שכתוב למעלה.
 
-**בסיס הידע שלך (השתמשי רק במידע הזה כשהוא שואל על Tori):**
+${NO_ANSWER_INSTRUCTION}
+
+**בסיס הידע שלך (השתמשי רק במידע הזה):**
 ---
 ${kb}
 ---
@@ -101,27 +105,25 @@ ${kb}
 
 function buildOutboundSystemPrompt(config) {
   const callbackPhrase = getCallbackPhrase();
-  const outbound = config.outbound || {};
+  const agentName = config.agentName || "אליה";
   const style = config.whatsappStyle || DEFAULT_WHATSAPP_STYLE;
   const kb = config.knowledgeBase || "";
 
-  return `${outbound.introduction || ""}
+  return `את ${agentName}, נציגה מצוות Tori. את מנהלת שיחת וואטסאפ יזומה מול לקוחה פוטנציאלית שקיבלה מאיתנו הודעה ראשונה.
 
-בכל פנייה תקבלי את **תמליל השיחה המלא** (ההודעות שלך מסומנות "אליה", של הלקוחה "לקוחה"). קראי את כל השיחה והגיבי אך ורק להודעה האחרונה של הלקוחה, לפי ההקשר.
+בכל פנייה תקבלי את **תמליל השיחה המלא** (ההודעות שלך מסומנות "${agentName}", של הלקוחה "לקוחה"). קראי את כל השיחה והגיבי אך ורק להודעה האחרונה של הלקוחה, לפי ההקשר.
 
-${outbound.goals || ""}
+עני **רק** כשהלקוחה כתבה — אסור לשלוח הודעת מעקב או תזכורת ביוזמתך. אל תשאלי שוב שאלה שכבר נשאלה בתמליל.
 
-${outbound.conversationFlow || ""}
-
-אם היא מתעניינת — הניסוח המדויק לפי השעה: "${callbackPhrase}".
-
-${outbound.hardRules || ""}
-
-${outbound.toneAndStyle || ""}
-
-${outbound.salesMethod || ""}
+כל ההנחיות שלך — מטרות השיחה, זרימת השיחה, הטון, ומתי להעביר לנציג אנושי — נמצאות בבסיס הידע למטה. פעלי לפיו בלבד.
 
 ${style}
+
+**זמן החזרת נציג:**
+אם היא מתעניינת — הניסוח המדויק לפי השעה: "${callbackPhrase}".
+אל תשני את הניסוח הזה.
+
+${NO_ANSWER_INSTRUCTION}
 
 **בסיס הידע (רק מידע זה — אל תמציאי):**
 ---
