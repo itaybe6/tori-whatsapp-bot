@@ -2,7 +2,11 @@ require("dotenv").config();
 const express = require("express");
 const { createClient } = require("@supabase/supabase-js");
 const multer = require("multer");
-const { sendMessage, sendProactiveMessage } = require("./src/whatsapp");
+const {
+  sendMessage,
+  sendProactiveMessage,
+  startTypingIndicator,
+} = require("./src/whatsapp");
 const { parseExcelBuffer } = require("./src/excelImport");
 const { extractMessageName } = require("./src/leadMessageName");
 const {
@@ -731,6 +735,7 @@ app.post("/webhook", async (req, res) => {
   // חשוב: להחזיר 200 מיד כדי ש-Meta לא ישלח שוב
   res.sendStatus(200);
 
+  let stopTyping = () => {};
   try {
     const entry = req.body.entry?.[0];
     const change = entry?.changes?.[0];
@@ -799,6 +804,9 @@ app.post("/webhook", async (req, res) => {
       return;
     }
 
+    // מכאן אנחנו מתכוונים לענות — מסמנים כנקרא ומציגים "מקליד…" עד השליחה
+    stopTyping = startTypingIndicator(message.id);
+
     const isProactive = await isConversationProactive(from);
     let reply;
     let leadStatus;
@@ -833,6 +841,9 @@ app.post("/webhook", async (req, res) => {
           { role: "model", parts: [{ text: opening }] },
         ]);
         await saveMessage(from, "bot", opening);
+        // שליחת הפתיחה ביטלה את חיווי ההקלדה — מפעילים מחדש עבור תשובת ה-AI
+        stopTyping();
+        stopTyping = startTypingIndicator(message.id);
         reply = await getReply(from, text);
       } else {
         reply = await getReply(from, text);
@@ -867,6 +878,8 @@ app.post("/webhook", async (req, res) => {
     await sendMessage(from, reply);
   } catch (err) {
     console.error("❌ שגיאה בעיבוד הודעה:", err);
+  } finally {
+    stopTyping();
   }
 });
 

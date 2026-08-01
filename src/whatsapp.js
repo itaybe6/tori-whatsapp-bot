@@ -39,6 +39,63 @@ async function postWhatsApp(payload) {
   }
 }
 
+// וואטסאפ מסתיר את חיווי ההקלדה אחרי 25 שניות או ברגע שנשלחת תשובה — מה שקורה קודם.
+const TYPING_REFRESH_MS =
+  Number(process.env.WHATSAPP_TYPING_REFRESH_MS) || 20_000;
+const TYPING_MAX_MS = Number(process.env.WHATSAPP_TYPING_MAX_MS) || 60_000;
+
+/**
+ * מסמן את ההודעה הנכנסת כנקראה ומציג "מקליד…" ללקוח.
+ * לא זורק — כישלון בחיווי לא אמור למנוע את שליחת התשובה עצמה.
+ */
+async function sendTypingIndicator(messageId) {
+  if (!messageId) return false;
+  const url = `${BASE_URL}/${process.env.PHONE_NUMBER_ID}/messages`;
+  try {
+    await axios.post(
+      url,
+      {
+        messaging_product: "whatsapp",
+        status: "read",
+        message_id: messageId,
+        typing_indicator: { type: "text" },
+      },
+      { headers: authHeaders() }
+    );
+    return true;
+  } catch (err) {
+    const fb = err.response?.data?.error;
+    console.warn(`⚠️ חיווי הקלדה נכשל: ${fb?.message || err.message}`);
+    return false;
+  }
+}
+
+/**
+ * מציג "מקליד…" ומרענן אותו כל עוד התשובה בהכנה, עד תקרה של TYPING_MAX_MS.
+ * מחזיר פונקציית עצירה — חובה לקרוא לה בכל מסלול יציאה.
+ */
+function startTypingIndicator(messageId) {
+  if (!messageId) return () => {};
+
+  let stopped = false;
+  let timer = null;
+  const deadline = Date.now() + TYPING_MAX_MS;
+
+  const refresh = async () => {
+    if (stopped) return;
+    await sendTypingIndicator(messageId);
+    if (stopped || Date.now() + TYPING_REFRESH_MS >= deadline) return;
+    timer = setTimeout(refresh, TYPING_REFRESH_MS);
+    timer.unref?.();
+  };
+  refresh();
+
+  return () => {
+    stopped = true;
+    if (timer) clearTimeout(timer);
+  };
+}
+
 async function sendMessage(to, text) {
   const data = await postWhatsApp({
     messaging_product: "whatsapp",
@@ -104,4 +161,10 @@ async function sendProactiveMessage(to, name, options = {}) {
   return sendTemplateMessage(to, { name, ...options });
 }
 
-module.exports = { sendMessage, sendTemplateMessage, sendProactiveMessage };
+module.exports = {
+  sendMessage,
+  sendTemplateMessage,
+  sendProactiveMessage,
+  sendTypingIndicator,
+  startTypingIndicator,
+};
