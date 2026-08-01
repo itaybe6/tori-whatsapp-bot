@@ -4,6 +4,8 @@ create table if not exists public.conversations (
   phone text primary key,
   name text not null default '',
   status text not null default 'bot' check (status in ('bot', 'human', 'needs_human', 'closed')),
+  -- למה השיחה עברה לנציג: sales | support | cancel | unknown_answer | no_answer
+  handoff_reason text,
   last_message_at timestamptz not null default now(),
   last_message text not null default '',
   last_user_message text not null default '',
@@ -44,6 +46,7 @@ create table if not exists public.leads (
 -- alter table public.leads add column if not exists message_name text not null default '';
 -- alter table public.conversations add column if not exists last_user_message text not null default '';
 -- alter table public.conversations add column if not exists proactive boolean not null default false;
+-- alter table public.conversations add column if not exists handoff_reason text;
 -- alter table public.conversations drop constraint if exists conversations_status_check;
 -- alter table public.conversations add constraint conversations_status_check
 --   check (status in ('bot', 'human', 'needs_human', 'closed'));

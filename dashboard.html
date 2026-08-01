@@ -3000,7 +3000,15 @@
       return `<select class="lead-status-select status-${status}" data-lead-id="${lead.id}" aria-label="סטטוס ליד">${opts}</select>`;
     }
 
-    function statusBadge(status) {
+    const HANDOFF_REASON_LABELS = {
+      sales: "מוכן לסגירה — חזור אליו",
+      support: "תמיכה / תקלה",
+      cancel: "בקשת ביטול",
+      unknown_answer: "שאלה ללא תשובה",
+      no_answer: "הבוט לא ידע לענות",
+    };
+
+    function statusBadge(status, handoffReason) {
       const s = status || "bot";
       const map = {
         bot: { cls: "bot", label: "בוט פעיל" },
@@ -3009,7 +3017,10 @@
         closed: { cls: "closed", label: "נסגר" },
       };
       const x = map[s] || map.bot;
-      return `<span class="badge ${x.cls}">${x.label}</span>`;
+      const reason =
+        s === "needs_human" ? HANDOFF_REASON_LABELS[handoffReason] : null;
+      const label = reason ? `${x.label} — ${reason}` : x.label;
+      return `<span class="badge ${x.cls}">${label}</span>`;
     }
 
     function formatTime(iso) {
@@ -3214,7 +3225,7 @@
                 <div class="phone">${escapeHtml(c.phone)}</div>
                 <div class="${previewCls}">${escapeHtml(prev)}</div>
                 <div class="row2">
-                  ${statusBadge(c.status)}
+                  ${statusBadge(c.status, c.handoff_reason)}
                   ${c.proactive ? '<span class="badge proactive">שיחה יזומה</span>' : ""}
                   <button type="button" class="conv-delete" data-delete="${phoneAttr}" title="מחק שיחה" aria-label="מחק שיחה">${TRASH_SVG}</button>
                 </div>
@@ -3310,17 +3321,18 @@
       document.getElementById("detailName").textContent = nm;
       document.getElementById("detailPhone").textContent = c.phone;
       setDetailAvatar(nm);
-      renderToolbarIfNeeded(c.status);
+      renderToolbarIfNeeded(c.status, c.handoff_reason);
     }
 
-    function renderToolbarIfNeeded(status) {
+    function renderToolbarIfNeeded(status, handoffReason) {
       const st = status || "bot";
-      if (lastToolbarStatus === st) return;
-      lastToolbarStatus = st;
-      renderToolbar(st);
+      const key = `${st}|${handoffReason || ""}`;
+      if (lastToolbarStatus === key) return;
+      lastToolbarStatus = key;
+      renderToolbar(st, handoffReason);
     }
 
-    function renderToolbar(status) {
+    function renderToolbar(status, handoffReason) {
       const tb = document.getElementById("toolbar");
       const composer = document.getElementById("composer");
       const st = status || "bot";
@@ -3329,7 +3341,9 @@
 
       let html = "";
       if (st === "needs_human") {
-        html += `<span class="badge needs_human" style="margin-inline-end:8px">הבוט לא ידע לענות — ענה ידנית</span>`;
+        const reason =
+          HANDOFF_REASON_LABELS[handoffReason] || "הבוט לא ידע לענות";
+        html += `<span class="badge needs_human" style="margin-inline-end:8px">${reason} — ענה ידנית</span>`;
       }
       if (st === "bot") {
         html += `<button type="button" id="btnHandoff">קח שליטה</button>`;
@@ -3401,7 +3415,7 @@
       document.getElementById("detailName").textContent = nm;
       document.getElementById("detailPhone").textContent = selectedPhone;
       setDetailAvatar(nm);
-      renderToolbarIfNeeded(c ? c.status : "bot");
+      renderToolbarIfNeeded(c ? c.status : "bot", c ? c.handoff_reason : null);
 
       try {
         await loadMessagesForSelection();
@@ -3637,7 +3651,9 @@
         needsEl.innerHTML = s.needsHumanList
           .map((c) => {
             const nm = (c.name && c.name.trim()) || c.phone;
-            return renderHomeListItem(nm, c.phone, avatarHueClass(nm));
+            const reason = HANDOFF_REASON_LABELS[c.handoff_reason];
+            const meta = reason ? `${c.phone} · ${reason}` : c.phone;
+            return renderHomeListItem(nm, meta, avatarHueClass(nm));
           })
           .join("");
         bindHomeListClicks(needsEl, (i) => {
@@ -4792,7 +4808,7 @@
         try {
           await loadMessagesForSelection();
           const c = conversationsCache.find((x) => x.phone === selectedPhone);
-          if (c) renderToolbarIfNeeded(c.status);
+          if (c) renderToolbarIfNeeded(c.status, c.handoff_reason);
         } catch (e) {
           showError(e.message || String(e));
         }

@@ -24,6 +24,8 @@ const {
   shouldReplyToInbound,
   isGreetingOnly,
   isNoAnswerSignal,
+  detectHandoffReason,
+  HANDOFF_REASONS,
 } = require("./src/proactiveFlow");
 const { getHumanReplyDelayMs } = require("./src/humanDelay");
 const { getAppSetting, setAppSetting } = require("./src/appSettings");
@@ -164,9 +166,18 @@ function shouldSendAdminAlert(key) {
   return true;
 }
 
+const ADMIN_ALERT_REASONS = {
+  needs_human: "הבוט לא ידע לתת מענה",
+  interested: "הלקוח הביע עניין",
+  sales: "הלקוח מעוניין להצטרף — צריך לחזור אליו",
+  support: "פנייה בנושא תמיכה או תקלה",
+  cancel: "בקשת ביטול",
+  unknown_answer: "שאלה שהבוט לא ידע לענות עליה",
+};
+
 /**
- * שולח התראה לנציגים. reason: "needs_human" | "interested".
- * dedup לפי לקוחה+סיבה כדי לא להציף. נכשל בשקט — לא משבש את השיחה.
+ * שולח התראה לנציגים. reason: מפתח מתוך ADMIN_ALERT_REASONS.
+ * dedup לפי לקוח+סיבה כדי לא להציף. נכשל בשקט — לא משבש את השיחה.
  */
 async function notifyAdmins(reason, customerPhone, customerName) {
   if (!ADMIN_ALERT_NUMBERS.length) return;
@@ -175,11 +186,8 @@ async function notifyAdmins(reason, customerPhone, customerName) {
   const who = customerName
     ? `${customerName} (${customerPhone})`
     : customerPhone;
-  const reasonText =
-    reason === "needs_human"
-      ? "הבוט לא ידע לתת מענה"
-      : "הלקוחה הביעה עניין";
-  const text = `🔔 ${ADMIN_ALERT_MESSAGE}\n${reasonText}\nלקוחה: ${who}`;
+  const reasonText = ADMIN_ALERT_REASONS[reason] || ADMIN_ALERT_REASONS.interested;
+  const text = `🔔 ${ADMIN_ALERT_MESSAGE}\n${reasonText}\nלקוח: ${who}`;
 
   for (const admin of ADMIN_ALERT_NUMBERS) {
     if (admin === customerPhone) continue;
@@ -849,7 +857,7 @@ app.post("/webhook", async (req, res) => {
     }
 
     if (isNoAnswerSignal(reply)) {
-      await setConversationStatus(from, "needs_human");
+      await setConversationStatus(from, "needs_human", HANDOFF_REASONS.NO_ANSWER);
       console.log(
         `   🚨 הבוט לא ידע לתת מענה — סטטוס השיחה הועבר ל-needs_human (ממתין לנציג)`
       );
@@ -862,8 +870,11 @@ app.post("/webhook", async (req, res) => {
       console.log(`   סטטוס ליד עודכן: ${leadStatus}`);
     }
 
-    // הלקוחה מעוניינת — הבוט מציע שיחה חוזרת ("נציג יחזור אלייך…") → התראה לנציגים
-    if (leadStatus === "relevant" || /נציג\s+יחזור/.test(reply || "")) {
+    const handoffReason = detectHandoffReason(reply);
+
+    if (handoffReason) {
+      await notifyAdmins(handoffReason, from, name);
+    } else if (leadStatus === "relevant") {
       await notifyAdmins("interested", from, name);
     }
 
@@ -874,6 +885,18 @@ app.post("/webhook", async (req, res) => {
     console.log(`   תשובה: ${reply}`);
     await saveMessage(from, "bot", reply);
     await sendMessage(from, reply);
+
+    // הבוט הודיע ללקוח שהשיחה עוברת לנציג — מסמנים בדשבורד ומשתיקים את הבוט,
+    // כדי שהוא לא ימשיך לענות אחרי שהובטח מענה אנושי.
+    if (handoffReason) {
+      await setConversationStatus(from, "needs_human", handoffReason);
+      if (handoffReason === HANDOFF_REASONS.SALES) {
+        await markLeadStatusByPhone(from, "relevant");
+      }
+      console.log(
+        `   🙋 הבוט העביר לנציג (${handoffReason}) — השיחה סומנה כדורשת מענה ידני`
+      );
+    }
   } catch (err) {
     console.error("❌ שגיאה בעיבוד הודעה:", err);
   } finally {

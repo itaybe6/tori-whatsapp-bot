@@ -15,6 +15,7 @@ create table if not exists public.conversations (
   phone text primary key,
   name text not null default '',
   status text not null default 'bot' check (status in ('bot', 'human', 'needs_human', 'closed')),
+  handoff_reason text,
   last_message_at timestamptz not null default now(),
   last_message text not null default '',
   last_user_message text not null default '',

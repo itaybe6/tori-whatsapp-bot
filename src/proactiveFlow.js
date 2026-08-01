@@ -135,6 +135,44 @@ function shouldReplyToInbound(allMessages, incomingText) {
 }
 
 /**
+ * סיבות שבגללן שיחה עוברת לנציג אנושי. משמש גם לתווית בדשבורד.
+ */
+const HANDOFF_REASONS = {
+  SALES: "sales",
+  SUPPORT: "support",
+  CANCEL: "cancel",
+  UNKNOWN_ANSWER: "unknown_answer",
+  NO_ANSWER: "no_answer",
+};
+
+/** "מעביר/ה", "העברתי" + נציג — הניסוחים שבהם הפרומפטים מודיעים על העברה. */
+const HANDOFF_STATEMENT =
+  /(מעביר|מעבירה|מעבירים|העברתי|העברנו|מועבר|אעביר)[^.?!]{0,40}(לנציג|נציג)|נציג[^.?!]{0,30}(יחזור|יתקשר|ייצור קשר)/;
+
+/**
+ * מזהה שהבוט הודיע ללקוח שהשיחה עוברת לנציג אנושי.
+ * שאלה כמו „רוצה שאעביר לנציג?” אינה העברה — רק הצעה שממתינה לאישור.
+ */
+function detectHandoffReason(reply) {
+  const t = normalize(reply);
+  if (!t) return null;
+
+  const announced = t
+    .split(/(?<=[.?!])\s+/)
+    .some((sentence) => !/\?\s*$/.test(sentence) && HANDOFF_STATEMENT.test(sentence));
+  if (!announced) return null;
+
+  if (/ביטול|לבטל|מבטל|ביטולים/.test(t)) return HANDOFF_REASONS.CANCEL;
+  if (/תמיכה|תקלה|טכני|חיוב|תשלום|התחברות/.test(t)) {
+    return HANDOFF_REASONS.SUPPORT;
+  }
+  if (/תשובה מדויקת|נושאים כאלה|נושא הזה/.test(t)) {
+    return HANDOFF_REASONS.UNKNOWN_ANSWER;
+  }
+  return HANDOFF_REASONS.SALES;
+}
+
+/**
  * קובע עדכון סטטוס ליד לפי תשובת הלקוחה.
  */
 function detectLeadStatus(messages, lastUser) {
@@ -157,6 +195,8 @@ function detectLeadStatus(messages, lastUser) {
 
 module.exports = {
   detectLeadStatus,
+  detectHandoffReason,
+  HANDOFF_REASONS,
   sanitizeProactiveReply,
   shouldReplyToInbound,
   isGreetingOnly,

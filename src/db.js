@@ -174,7 +174,11 @@ async function isConversationProactive(phone) {
   return Boolean(data?.proactive);
 }
 
-async function setConversationStatus(phone, status) {
+function isMissingHandoffReasonColumn(error) {
+  return /handoff_reason/i.test(String(error?.message || ""));
+}
+
+async function setConversationStatus(phone, status, handoffReason = null) {
   const db = requireClient();
   const { data: existing, error: selErr } = await db
     .from("conversations")
@@ -183,26 +187,32 @@ async function setConversationStatus(phone, status) {
     .maybeSingle();
   if (selErr) throw selErr;
 
-  if (!existing) {
-    const { error } = await db.from("conversations").insert({
-      phone,
-      name: "",
-      status,
-      last_message_at: new Date().toISOString(),
-      last_message: "",
-    });
-    if (error) throw error;
-  } else {
-    const { error } = await db
-      .from("conversations")
-      .update({ status })
-      .eq("phone", phone);
-    if (error) throw error;
+  // סיבת ההעברה נשמרת רק כשעוברים לנציג; חזרה לבוט מנקה אותה.
+  const reason = status === "needs_human" ? handoffReason : null;
+
+  const write = async (withReason) => {
+    const payload = withReason ? { status, handoff_reason: reason } : { status };
+    if (!existing) {
+      return db.from("conversations").insert({
+        phone,
+        name: "",
+        last_message_at: new Date().toISOString(),
+        last_message: "",
+        ...payload,
+      });
+    }
+    return db.from("conversations").update(payload).eq("phone", phone);
+  };
+
+  let { error } = await write(true);
+  if (error && isMissingHandoffReasonColumn(error)) {
+    ({ error } = await write(false));
   }
+  if (error) throw error;
 }
 
 const CONVERSATIONS_SELECT_FULL =
-  "phone, name, status, last_message_at, last_message, last_user_message, proactive";
+  "phone, name, status, handoff_reason, last_message_at, last_message, last_user_message, proactive";
 const CONVERSATIONS_SELECT_BASIC =
   "phone, name, status, last_message_at, last_message";
 
@@ -242,7 +252,12 @@ async function getConversations() {
     .select(CONVERSATIONS_SELECT_FULL)
     .order("last_message_at", { ascending: false });
 
-  if (error && (isMissingUserMessageColumn(error) || isMissingProactiveColumn(error))) {
+  if (
+    error &&
+    (isMissingUserMessageColumn(error) ||
+      isMissingProactiveColumn(error) ||
+      isMissingHandoffReasonColumn(error))
+  ) {
     ({ data, error } = await db
       .from("conversations")
       .select(CONVERSATIONS_SELECT_BASIC)
@@ -253,6 +268,7 @@ async function getConversations() {
   const normalized = (data ?? []).map((row) => ({
     ...row,
     last_user_message: row.last_user_message || "",
+    handoff_reason: row.handoff_reason || null,
     proactive: Boolean(row.proactive),
   }));
 
