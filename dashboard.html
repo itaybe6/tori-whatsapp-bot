@@ -4545,6 +4545,16 @@
       });
     }
 
+    function renderOutboundFirstPreview(messageName) {
+      const template =
+        document.getElementById("aiOutboundFirst")?.value?.trim() ||
+        "היי {name}, כאן אליה מ-Tori 👋 ראיתי שהשארת פרטים לגבי אפליקציה אישית לניהול תורים לעסק. אשמח להסביר בקצרה איך זה עובד — מה סוג העסק שלך?";
+      const name = String(messageName || "").trim();
+      return template
+        .replace(/\{name\}/g, name)
+        .replace(/\{greeting\}/g, name ? `היי ${name}` : "היי");
+    }
+
     async function sendFirstMessageFlow(id) {
       const lead = leadsCache.find((l) => l.id === id);
       if (!canSendFirstMessage(lead)) {
@@ -4557,9 +4567,7 @@
         return;
       }
 
-      const preview =
-        `היי ${messageName} מה שלומך ?\n` +
-        "הבנתי שאת בונת ציפורניים , זה נכון ?";
+      const preview = renderOutboundFirstPreview(messageName);
       const ok = window.confirm(
         `לשלוח הודעה ראשונה ל-${messageName}?\n\n${preview}`
       );

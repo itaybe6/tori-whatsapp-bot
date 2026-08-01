@@ -984,7 +984,7 @@ async function sendOpening(phone, name) {
     console.log(`↻ דילגנו על פתיחה — כבר יש שיחה עם ${normalized}`);
     return { skipped: true, phone: normalized, reason: "has_messages" };
   }
-  const opening = await getOpeningMessage(name || "");
+  const opening = await getFirstLeadMessage(name || "");
   await upsertConversation(normalized, name || "");
   await markConversationProactive(normalized);
   await sendProactiveMessage(normalized, name || "");

@@ -325,7 +325,7 @@ async function getFirstLeadMessage(messageName) {
   const name = String(messageName || "").trim();
   const template =
     config.outbound?.firstMessageTemplate ||
-    "היי {name} מה שלומך ?\nהבנתי שאת בונת ציפורניים , זה נכון ?";
+    "היי {name}, כאן אליה מ-Tori 👋 ראיתי שהשארת פרטים לגבי אפליקציה אישית לניהול תורים לעסק. אשמח להסביר בקצרה איך זה עובד — מה סוג העסק שלך?";
   const greeting = name ? `היי ${name}` : "היי";
   return template.replace(/\{name\}/g, name).replace(/\{greeting\}/g, greeting);
 }
