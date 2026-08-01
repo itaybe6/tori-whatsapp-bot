@@ -3,8 +3,14 @@ const express = require("express");
 const path = require("path");
 
 const app = express();
-const PORT = process.env.DASHBOARD_PORT || 3001;
+// Railway מזריק PORT; מקומית משתמשים ב-DASHBOARD_PORT (3001)
+const PORT = Number(process.env.PORT || process.env.DASHBOARD_PORT || 3001);
+const HOST = process.env.HOST || "0.0.0.0";
 const root = __dirname;
+
+app.get("/health", (_req, res) => {
+  res.json({ ok: true, service: "dashboard" });
+});
 
 app.get("/config.js", (_req, res) => {
   const apiBase = process.env.TORI_API_BASE || "http://localhost:3000";
@@ -28,8 +34,8 @@ app.get("/assets/tori-logo.png", (_req, res) => {
   res.sendFile(path.join(root, "assets", "tori logo-06.png"));
 });
 
-const server = app.listen(PORT, () => {
-  console.log(`\n📊 דשבורד ניהול: http://localhost:${PORT}\n`);
+const server = app.listen(PORT, HOST, () => {
+  console.log(`\n📊 דשבורד ניהול: http://${HOST}:${PORT}\n`);
 });
 
 server.on("error", (err) => {

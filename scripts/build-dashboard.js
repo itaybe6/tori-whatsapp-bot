@@ -9,7 +9,7 @@ const root = path.join(__dirname, "..");
 const outDir = path.join(root, "public");
 const apiBase =
   process.env.TORI_API_BASE ||
-  "https://tori-whatsapp-bot-production.up.railway.app";
+  "https://tori-whatsapp-bot-production-9421.up.railway.app";
 const supabaseUrl = process.env.SUPABASE_URL || "";
 const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || "";
 
