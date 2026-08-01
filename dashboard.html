@@ -2618,18 +2618,13 @@
           <p class="hint">חוקי אורך, טון קצר, דוגמאות — חל על נכנסות ויוצאות.</p>
           <textarea id="aiWhatsappStyle" rows="8"></textarea>
         </div>
-        <div class="ai-field">
-          <label for="aiInboundOpening">הודעת פתיחה — שיחה נכנסת (דף נחיתה)</label>
-          <p class="hint">ההודעה הראשונה שנשלחת ללקוח שהשאיר פרטים. משתנים: {greeting} — ברכה עם שם, {name} — שם פרטי.</p>
-          <textarea id="aiInboundOpening" rows="3"></textarea>
-        </div>
-        <div class="ai-field">
-          <label for="aiOutboundFirst">הודעה ראשונה לליד — שיחה יוצאת</label>
-          <p class="hint">ההודעה הראשונה שנשלחת ליד מרשימת הלידים. משתנים: {name}, {greeting}.</p>
-          <textarea id="aiOutboundFirst" rows="3"></textarea>
-        </div>
       </div>
       <div class="ai-panel ai-prompt-panel" id="aiPanelPromptInbound" data-ai-panel="prompt-inbound">
+        <div class="ai-field">
+          <label for="aiInboundOpening">הודעת פתיחה — שיחה נכנסת</label>
+          <p class="hint">נשלחת רק כאשר ההודעה הראשונה של הפונה היא ברכה בלבד („היי”, „שלום”). בכל מקרה אחר הנציג עונה לפי הפרומפט שלמטה. משתנים: {greeting}, {name}.</p>
+          <textarea id="aiInboundOpening" rows="3"></textarea>
+        </div>
         <p class="hint">הפרומפט של שיחות נכנסות בלבד. בסיס הידע ו«ניהול שיחה מכירתי» מתווספים אוטומטית בשיחה — לא מופיעים כאן. לחץ «שמירה» למעלה לאחר שינוי.</p>
         <div class="ai-prompt-toolbar">
           <button type="button" class="secondary" id="aiPromptInboundReset">איפוס לברירת מחדל</button>
@@ -2637,6 +2632,11 @@
         <textarea id="aiPromptInbound" class="ai-prompt-text" dir="rtl" spellcheck="false"></textarea>
       </div>
       <div class="ai-panel ai-prompt-panel" id="aiPanelPromptOutbound" data-ai-panel="prompt-outbound">
+        <div class="ai-field">
+          <label for="aiOutboundFirst">הודעה ראשונה לליד — שיחה יוצאת</label>
+          <p class="hint">ההודעה הראשונה שנשלחת ליד מרשימת הלידים. משתנים: {name}, {greeting}.</p>
+          <textarea id="aiOutboundFirst" rows="3"></textarea>
+        </div>
         <p class="hint">הפרומפט של שיחות יוצאות בלבד. בסיס הידע ו«ניהול שיחה מכירתי» מתווספים אוטומטית בשיחה — לא מופיעים כאן. לחץ «שמירה» למעלה לאחר שינוי.</p>
         <div class="ai-prompt-toolbar">
           <button type="button" class="secondary" id="aiPromptOutboundReset">איפוס לברירת מחדל</button>

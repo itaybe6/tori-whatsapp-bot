@@ -22,6 +22,7 @@ const {
   detectLeadStatus,
   sanitizeProactiveReply,
   shouldReplyToInbound,
+  isGreetingOnly,
   isNoAnswerSignal,
 } = require("./src/proactiveFlow");
 const { getHumanReplyDelayMs } = require("./src/humanDelay");
@@ -834,17 +835,14 @@ app.post("/webhook", async (req, res) => {
         conversations.set(from, hydrated);
       }
 
-      if (isFirstMessage) {
-        const opening = await getOpeningMessage(name);
-        await sendMessage(from, opening);
+      // הודעה ראשונה שהיא ברכה בלבד — תבנית הפתיחה של שיחות נכנסות משמשת
+      // כתשובה עצמה, כדי שלא תישלח גם פתיחה וגם תשובת AI באותה נשימה.
+      if (isFirstMessage && isGreetingOnly(text)) {
+        reply = await getOpeningMessage(name);
         conversations.set(from, [
-          { role: "model", parts: [{ text: opening }] },
+          { role: "user", parts: [{ text }] },
+          { role: "model", parts: [{ text: reply }] },
         ]);
-        await saveMessage(from, "bot", opening);
-        // שליחת הפתיחה ביטלה את חיווי ההקלדה — מפעילים מחדש עבור תשובת ה-AI
-        stopTyping();
-        stopTyping = startTypingIndicator(message.id);
-        reply = await getReply(from, text);
       } else {
         reply = await getReply(from, text);
       }

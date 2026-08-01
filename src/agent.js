@@ -314,7 +314,7 @@ async function getOpeningMessage(name) {
   const greeting = firstName ? `שלום ${firstName}` : "שלום";
   const template =
     config.inbound?.openingTemplate ||
-    "{greeting}, אני אליה מצוות טורי 🙂 ראיתי שהשארת פרטים והתעניינת באפליקציה. מאיזה תחום אתה מגיע?";
+    "היי, כאן אליה מ-Tori 👋 איך אפשר לעזור?";
   return template
     .replace(/\{greeting\}/g, greeting)
     .replace(/\{name\}/g, firstName);
@@ -334,7 +334,7 @@ function formatProactiveTranscript(messages) {
   return messages
     .filter((m) => ["user", "bot", "human_agent"].includes(m.role))
     .map((m) => {
-      const speaker = m.role === "user" ? "לקוחה" : "אליה";
+      const speaker = m.role === "user" ? "לקוח" : "אליה";
       return `${speaker}: ${String(m.content || "").trim()}`;
     })
     .join("\n");
@@ -348,8 +348,8 @@ ${transcript}
 
 ---
 
-כתבי את התשובה הבאה של אליה להודעה האחרונה של הלקוחה.
-חובה: הודעה אחת קצרה (5–15 מילים), עניינית, בסגנון וואטסאפ ישראלי. רק את תוכן ההודעה — בלי תווית ובלי הסברים.`;
+כתבי את התשובה הבאה של אליה להודעה האחרונה של הלקוח, לפי ההנחיות שקיבלת.
+החזירי הודעה אחת בלבד — רק את תוכן ההודעה, בלי תווית ובלי הסברים.`;
 
   const config = await getAiAgentConfig();
   const systemInstruction = resolveOutboundSystemPrompt(config);
@@ -438,8 +438,8 @@ ${transcript}
 
 ---
 
-כתבי את התשובה הבאה של אליה להודעה האחרונה של הלקוחה.
-חובה: הודעה אחת קצרה (5–15 מילים), עניינית, בסגנון וואטסאפ ישראלי. רק את תוכן ההודעה — בלי תווית ובלי הסברים.`;
+כתבי את התשובה הבאה של אליה להודעה האחרונה של הלקוח, לפי ההנחיות שקיבלת.
+החזירי הודעה אחת בלבד — רק את תוכן ההודעה, בלי תווית ובלי הסברים.`;
 
   const config = await getAiAgentConfig();
   const systemInstruction = resolveOutboundSystemPrompt(config);

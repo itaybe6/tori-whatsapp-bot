@@ -59,7 +59,7 @@ const DEFAULT_AI_AGENT_CONFIG = {
     prompt: DEFAULT_INBOUND_PROMPT,
     conversationGuide: DEFAULT_CONVERSATION_GUIDE,
     openingTemplate:
-      "{greeting}, אני אליה מצוות טורי 🙂 ראיתי שהשארת פרטים והתעניינת באפליקציה. מאיזה תחום אתה מגיע?",
+      "היי, כאן אליה מ-Tori 👋 איך אפשר לעזור?",
     systemPromptOverride: "",
   },
   outbound: {

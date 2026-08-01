@@ -42,6 +42,18 @@ function isClearlyPositive(text) {
   );
 }
 
+/**
+ * הודעת פתיחה שאין בה שאלה או תוכן — רק ברכה. רק במקרה כזה נשלחת
+ * תבנית הפתיחה של שיחות נכנסות במקום תשובת AI.
+ */
+function isGreetingOnly(text) {
+  const t = normalize(text).replace(/[!?.,🙂👋😊]/g, "").trim();
+  if (!t || t.length > 25) return false;
+  return /^(היי|הי|שלום|אהלן|אהלן וסהלן|הלו|בוקר טוב|צהריים טובים|ערב טוב|hi|hey|hello|שלום רב)( לך| לכם)?$/.test(
+    t
+  );
+}
+
 function isNailTechConfirmation(text) {
   const t = normalize(text);
   if (isClearlyNegative(t)) return false;
@@ -147,6 +159,7 @@ module.exports = {
   detectLeadStatus,
   sanitizeProactiveReply,
   shouldReplyToInbound,
+  isGreetingOnly,
   isNoAnswerSignal,
   PITCH_MESSAGE,
   NO_ANSWER_SIGNAL,
