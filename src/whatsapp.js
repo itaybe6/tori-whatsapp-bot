@@ -1,4 +1,5 @@
 const axios = require("axios");
+const { enforceRtl } = require("./rtlText");
 
 const BASE_URL = `https://graph.facebook.com/v21.0`;
 
@@ -97,11 +98,12 @@ function startTypingIndicator(messageId) {
 }
 
 async function sendMessage(to, text) {
+  // התיקון חל רק על מה שנשלח לוואטסאפ — הטקסט שנשמר ב-DB נשאר נקי מסימני כיוון.
   const data = await postWhatsApp({
     messaging_product: "whatsapp",
     to,
     type: "text",
-    text: { body: text },
+    text: { body: enforceRtl(text) },
   });
   const msg = data.messages?.[0];
   console.log(
