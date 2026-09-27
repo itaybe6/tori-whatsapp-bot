@@ -4,6 +4,11 @@ const DEFAULT_GEMINI_MODEL =
   process.env.GEMINI_MODEL?.trim() || "gemini-2.5-flash";
 const DEFAULT_OPENAI_MODEL =
   process.env.OPENAI_MODEL?.trim() || "gpt-4.1-mini";
+const DEFAULT_OPENROUTER_MODEL =
+  process.env.OPENROUTER_MODEL?.trim() || "openai/gpt-4.1-mini";
+const OPENROUTER_BASE_URL = (
+  process.env.OPENROUTER_BASE_URL?.trim() || "https://openrouter.ai/api/v1"
+).replace(/\/$/, "");
 
 const DEFAULT_TEMPERATURE = Number(process.env.AI_TEMPERATURE) || 0.5;
 
@@ -19,13 +24,30 @@ function sleep(ms) {
 
 function resolveProvider() {
   const explicit = String(process.env.AI_PROVIDER || "").trim().toLowerCase();
-  if (explicit === "openai" || explicit === "gemini") return explicit;
+  if (explicit === "openai" || explicit === "gemini" || explicit === "openrouter") {
+    return explicit;
+  }
+  if (process.env.OPENROUTER_API_KEY?.trim()) return "openrouter";
   if (process.env.OPENAI_API_KEY?.trim()) return "openai";
   return "gemini";
 }
 
+function usesChatCompletionsApi(provider = resolveProvider()) {
+  return provider === "openai" || provider === "openrouter";
+}
+
 function getProviderLabel() {
-  return resolveProvider() === "openai" ? "OpenAI" : "Gemini";
+  const provider = resolveProvider();
+  if (provider === "openrouter") return "OpenRouter";
+  if (provider === "openai") return "OpenAI";
+  return "Gemini";
+}
+
+function getActiveModel() {
+  const provider = resolveProvider();
+  if (provider === "openrouter") return DEFAULT_OPENROUTER_MODEL;
+  if (provider === "openai") return DEFAULT_OPENAI_MODEL;
+  return DEFAULT_GEMINI_MODEL;
 }
 
 function parseRetryDelayMs(err) {
@@ -66,6 +88,12 @@ function isInvalidKeyError(err) {
 function formatAIUserError(err) {
   const provider = getProviderLabel();
   if (isInvalidKeyError(err)) {
+    if (resolveProvider() === "openrouter") {
+      return (
+        "מפתח OpenRouter לא תקין. ודא ש-OPENROUTER_API_KEY ב-.env נכון, " +
+        "ש-AI_PROVIDER=openrouter, והפעל מחדש את השרת."
+      );
+    }
     if (resolveProvider() === "openai") {
       return (
         "מפתח OpenAI לא תקין. ודא ש-OPENAI_API_KEY ב-.env נכון, " +
@@ -73,11 +101,16 @@ function formatAIUserError(err) {
       );
     }
     return (
-      "מפתח Gemini לא תקין. אם עברת ל-ChatGPT — הגדר AI_PROVIDER=openai ו-OPENAI_API_KEY ב-.env. " +
+      "מפתח Gemini לא תקין. אם עברת ל-OpenRouter — הגדר AI_PROVIDER=openrouter ו-OPENROUTER_API_KEY ב-.env. " +
       "אם משתמש ב-Gemini — ודא ש-GEMINI_API_KEY תקין."
     );
   }
   if (isQuotaError(err)) {
+    if (resolveProvider() === "openrouter") {
+      return (
+        "מכסת OpenRouter מלאה או הגבלת קצב. נסה שוב בעוד כדקה או בדוק Credits ב-OpenRouter."
+      );
+    }
     if (resolveProvider() === "openai") {
       return (
         "מכסת OpenAI API מלאה או הגבלת קצב. נסה שוב בעוד כדקה או בדוק Billing ב-OpenAI."
@@ -114,13 +147,40 @@ function safeGeminiText(result) {
   }
 }
 
-async function openaiChatCompletion(messages, options = {}) {
-  const key = process.env.OPENAI_API_KEY?.trim();
-  if (!key) {
-    throw new Error("חסר OPENAI_API_KEY ב-.env");
+function chatCompletionsConfig() {
+  if (resolveProvider() === "openrouter") {
+    return {
+      key: process.env.OPENROUTER_API_KEY?.trim(),
+      missingKeyError: "חסר OPENROUTER_API_KEY ב-.env",
+      url: `${OPENROUTER_BASE_URL}/chat/completions`,
+      model: DEFAULT_OPENROUTER_MODEL,
+      errorLabel: "OpenRouter",
+      headers: {
+        "HTTP-Referer":
+          process.env.OPENROUTER_SITE_URL?.trim() ||
+          "https://tori-whatsapp-bot-production-9421.up.railway.app",
+        "X-Title": process.env.OPENROUTER_APP_NAME?.trim() || "Tori WhatsApp Bot",
+      },
+    };
   }
 
-  const model = options.model || DEFAULT_OPENAI_MODEL;
+  return {
+    key: process.env.OPENAI_API_KEY?.trim(),
+    missingKeyError: "חסר OPENAI_API_KEY ב-.env",
+    url: "https://api.openai.com/v1/chat/completions",
+    model: DEFAULT_OPENAI_MODEL,
+    errorLabel: "OpenAI",
+    headers: {},
+  };
+}
+
+async function openaiChatCompletion(messages, options = {}) {
+  const config = chatCompletionsConfig();
+  if (!config.key) {
+    throw new Error(config.missingKeyError);
+  }
+
+  const model = options.model || config.model;
   const body = {
     model,
     messages,
@@ -131,11 +191,12 @@ async function openaiChatCompletion(messages, options = {}) {
     body.response_format = { type: "json_object" };
   }
 
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+  const res = await fetch(config.url, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${key}`,
+      Authorization: `Bearer ${config.key}`,
       "Content-Type": "application/json",
+      ...config.headers,
     },
     body: JSON.stringify(body),
   });
@@ -144,7 +205,7 @@ async function openaiChatCompletion(messages, options = {}) {
   if (!res.ok) {
     const msg =
       data?.error?.message ||
-      `OpenAI API error ${res.status}: ${res.statusText}`;
+      `${config.errorLabel} API error ${res.status}: ${res.statusText}`;
     const err = new Error(msg);
     err.status = res.status;
     throw err;
@@ -239,7 +300,7 @@ async function completeText({
   const label = `${getProviderLabel()} (generate)`;
 
   return withTransientRetry(async () => {
-    if (provider === "openai") {
+    if (usesChatCompletionsApi(provider)) {
       const messages = [
         { role: "system", content: systemInstruction },
         { role: "user", content: userPrompt },
@@ -270,7 +331,7 @@ async function chatText({
   const label = `${getProviderLabel()} (chat)`;
 
   return withTransientRetry(async () => {
-    if (provider === "openai") {
+    if (usesChatCompletionsApi(provider)) {
       const messages = geminiHistoryToOpenAIMessages(
         systemInstruction,
         history,
@@ -299,7 +360,7 @@ async function completeJson({ userPrompt, maxOutputTokens = 8192, maxAttempts = 
     userPrompt: jsonPrompt,
     temperature: 0.35,
     maxOutputTokens,
-    jsonMode: resolveProvider() === "openai",
+    jsonMode: usesChatCompletionsApi(),
     maxAttempts,
   });
   return text;
@@ -308,6 +369,7 @@ async function completeJson({ userPrompt, maxOutputTokens = 8192, maxAttempts = 
 module.exports = {
   resolveProvider,
   getProviderLabel,
+  getActiveModel,
   completeText,
   chatText,
   completeJson,

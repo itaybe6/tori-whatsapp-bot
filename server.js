@@ -18,6 +18,7 @@ const {
   formatGeminiUserError,
   conversations,
 } = require("./src/agent");
+const { getProviderLabel, getActiveModel } = require("./src/llm");
 const {
   detectLeadStatus,
   sanitizeProactiveReply,
@@ -1163,6 +1164,7 @@ app.get("/", (req, res) => {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`\n🚀 Tori WhatsApp Bot רץ על פורט ${PORT}`);
+  console.log(`🤖 AI: ${getProviderLabel()} / ${getActiveModel()}`);
   console.log(`📡 Webhook URL: http://localhost:${PORT}/webhook`);
   console.log(`📤 שליחה יזומה: POST http://localhost:${PORT}/send-opening`);
   console.log(`📊 API דשבורד: http://localhost:${PORT}/api/conversations`);
