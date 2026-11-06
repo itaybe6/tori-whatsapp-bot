@@ -1,21 +1,25 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 const DEFAULT_GEMINI_MODEL =
-  process.env.GEMINI_MODEL?.trim() || "gemini-2.5-flash";
+  process.env.GEMINI_MODEL?.trim() || "gemini-3.7-flash";
 const DEFAULT_OPENAI_MODEL =
   process.env.OPENAI_MODEL?.trim() || "gpt-4.1-mini";
 const DEFAULT_OPENROUTER_MODEL =
-  process.env.OPENROUTER_MODEL?.trim() || "openai/gpt-4.1-mini";
+  process.env.OPENROUTER_MODEL?.trim() || "openai/gpt-6-luna";
 const OPENROUTER_BASE_URL = (
   process.env.OPENROUTER_BASE_URL?.trim() || "https://openrouter.ai/api/v1"
 ).replace(/\/$/, "");
 
 const DEFAULT_TEMPERATURE = Number(process.env.AI_TEMPERATURE) || 0.5;
 
+const DEFAULT_MAX_OUTPUT_TOKENS =
+  Number(process.env.GEMINI_MAX_OUTPUT_TOKENS) || 4096;
+
 const GEMINI_GENERATION_DEFAULTS = {
-  maxOutputTokens: Number(process.env.GEMINI_MAX_OUTPUT_TOKENS) || 256,
+  maxOutputTokens: DEFAULT_MAX_OUTPUT_TOKENS,
   temperature: DEFAULT_TEMPERATURE,
-  thinkingConfig: { thinkingBudget: 0 },
+  // Gemini 3.7/3.8 לא מאפשר לכבות חשיבה. low היא הרמה הנמוכה ביותר.
+  thinkingConfig: { thinkingLevel: "low" },
 };
 
 function sleep(ms) {
@@ -117,7 +121,7 @@ function formatAIUserError(err) {
       );
     }
     return (
-      "מכסת Gemini API מלאה (תוכנית חינמית: בערך 20 בקשות ליום לדגם gemini-2.5-flash). " +
+      "מכסת Gemini API מלאה (תוכנית חינמית מוגבלת לדגם gemini-3.7-flash). " +
       "נסה שוב בעוד כדקה, שדרג חשבון ב-Google AI Studio, או עבר ל-OpenAI עם AI_PROVIDER=openai."
     );
   }
@@ -184,9 +188,14 @@ async function openaiChatCompletion(messages, options = {}) {
   const body = {
     model,
     messages,
-    max_tokens: options.maxOutputTokens ?? 256,
+    max_tokens: options.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
     temperature: options.temperature ?? DEFAULT_TEMPERATURE,
   };
+  // gpt-6-luna חושב כברירת מחדל, וטוקני הטיוטה נספרים בתוך max_tokens.
+  // none מכבה את הטיוטה. המודל תומך בזה; בלי זה הודעת וואטסאפ נחתכת.
+  if (resolveProvider() === "openrouter" && /gpt-6-(luna|sol)/i.test(model)) {
+    body.reasoning = { effort: "none" };
+  }
   if (options.jsonMode) {
     body.response_format = { type: "json_object" };
   }
