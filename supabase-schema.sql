@@ -1,6 +1,6 @@
 -- הרץ ב-SQL Editor של Supabase (או כמיגרציה) לפני שימוש בבוט
 
-create table if not exists public.conversations (
+create table if not exists public.wa_conversations (
   phone text primary key,
   name text not null default '',
   status text not null default 'bot' check (status in ('bot', 'human', 'needs_human', 'closed')),
@@ -12,19 +12,19 @@ create table if not exists public.conversations (
   proactive boolean not null default false
 );
 
-create table if not exists public.messages (
+create table if not exists public.wa_messages (
   id uuid primary key default gen_random_uuid(),
-  phone text not null references public.conversations (phone) on delete cascade,
+  phone text not null references public.wa_conversations (phone) on delete cascade,
   role text not null check (role in ('user', 'bot', 'human_agent')),
   content text not null,
   created_at timestamptz not null default now()
 );
 
-create index if not exists idx_messages_phone_created on public.messages (phone, created_at);
-create index if not exists idx_conversations_last_message_at on public.conversations (last_message_at desc);
+create index if not exists idx_wa_messages_phone_created on public.wa_messages (phone, created_at);
+create index if not exists idx_wa_conversations_last_message_at on public.wa_conversations (last_message_at desc);
 
 -- טבלת לידים
-create table if not exists public.leads (
+create table if not exists public.wa_leads (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   business text not null,
@@ -55,32 +55,32 @@ create table if not exists public.leads (
 --   check (status in ('no_contact', 'message_sent', 'active_conversation', 'relevant', 'not_relevant'));
 
 -- הפעלת RLS
-alter table public.leads enable row level security;
+alter table public.wa_leads enable row level security;
 
 -- מדיניות: לאפשר הכנסה אנונימית (לטופס ציבורי)
 create policy "Anyone can insert leads"
-  on public.leads
+  on public.wa_leads
   for insert
   to anon, authenticated
   with check (true);
 
 -- מדיניות קריאה רק למשתמשים מחוברים (אדמין)
 create policy "Authenticated can read leads"
-  on public.leads
+  on public.wa_leads
   for select
   to authenticated
   using (true);
 
 -- אינדקס
-create index if not exists leads_created_at_idx on public.leads (created_at desc);
+create index if not exists wa_leads_created_at_idx on public.wa_leads (created_at desc);
 
 -- הגדרות בוט (מתג שליחה שעתית וכו')
-create table if not exists public.app_settings (
+create table if not exists public.wa_app_settings (
   key text primary key,
   value jsonb not null default 'null'::jsonb,
   updated_at timestamptz not null default now()
 );
 
-insert into public.app_settings (key, value)
+insert into public.wa_app_settings (key, value)
 values ('hourly_no_contact_enabled', 'false'::jsonb)
 on conflict (key) do nothing;

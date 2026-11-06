@@ -8,13 +8,13 @@ const ws = require("ws");
 const { createClient } = require("@supabase/supabase-js");
 
 const SQL = `
-create table if not exists public.app_settings (
+create table if not exists public.wa_app_settings (
   key text primary key,
   value jsonb not null default 'null'::jsonb,
   updated_at timestamptz not null default now()
 );
 
-insert into public.app_settings (key, value)
+insert into public.wa_app_settings (key, value)
 values ('hourly_no_contact_enabled', 'false'::jsonb)
 on conflict (key) do nothing;
 `.trim();
@@ -59,7 +59,7 @@ async function main() {
   const url = new URL(rawUrl).origin;
   const db = createClient(url, key, { realtime: { transport: ws } });
 
-  const { error: probeErr } = await db.from("app_settings").select("key").limit(1);
+  const { error: probeErr } = await db.from("wa_app_settings").select("key").limit(1);
   if (!probeErr) {
     console.log("✅ טבלת app_settings כבר קיימת");
     return;
@@ -90,7 +90,7 @@ async function main() {
     process.exit(1);
   }
 
-  const { error: verifyErr } = await db.from("app_settings").select("key").limit(1);
+  const { error: verifyErr } = await db.from("wa_app_settings").select("key").limit(1);
   if (verifyErr) {
     console.error("❌ הטבלה לא נראית אחרי המיגרציה:", verifyErr.message);
     process.exit(1);

@@ -47,7 +47,7 @@ function wrapDbError(err) {
 
 async function checkConnection() {
   const db = requireClient();
-  const { error } = await db.from("leads").select("id").limit(1);
+  const { error } = await db.from("wa_leads").select("id").limit(1);
   if (error) throw wrapDbError(error);
   return true;
 }
@@ -58,7 +58,7 @@ async function checkConnection() {
 async function upsertConversation(phone, name) {
   const db = requireClient();
   const now = new Date().toISOString();
-  const { error } = await db.from("conversations").upsert(
+  const { error } = await db.from("wa_conversations").upsert(
     {
       phone,
       name: name ?? "",
@@ -75,7 +75,7 @@ async function upsertConversation(phone, name) {
 async function getConversationStatus(phone) {
   const db = requireClient();
   const { data, error } = await db
-    .from("conversations")
+    .from("wa_conversations")
     .select("status")
     .eq("phone", phone)
     .maybeSingle();
@@ -90,7 +90,7 @@ async function getConversationStatus(phone) {
 async function saveMessage(phone, role, content) {
   const db = requireClient();
   const text = typeof content === "string" ? content : String(content);
-  const { error: insErr } = await db.from("messages").insert({
+  const { error: insErr } = await db.from("wa_messages").insert({
     phone,
     role,
     content: text,
@@ -106,13 +106,13 @@ async function saveMessage(phone, role, content) {
   }
 
   let { error: updErr } = await db
-    .from("conversations")
+    .from("wa_conversations")
     .update(convUpdate)
     .eq("phone", phone);
 
   if (updErr && role === "user" && isMissingUserMessageColumn(updErr)) {
     ({ error: updErr } = await db
-      .from("conversations")
+      .from("wa_conversations")
       .update({
         last_message_at: convUpdate.last_message_at,
         last_message: convUpdate.last_message,
@@ -135,7 +135,7 @@ function isMissingProactiveColumn(err) {
 async function markConversationProactive(phone) {
   const db = requireClient();
   const { error } = await db
-    .from("conversations")
+    .from("wa_conversations")
     .update({ proactive: true })
     .eq("phone", phone);
   if (error && !isMissingProactiveColumn(error)) throw error;
@@ -146,7 +146,7 @@ async function markLeadStatusByPhone(phone, status) {
   try {
     const db = requireClient();
     const { error } = await db
-      .from("leads")
+      .from("wa_leads")
       .update({ status })
       .eq("phone", phone);
     if (error) throw error;
@@ -162,7 +162,7 @@ async function markLeadActiveByPhone(phone) {
 async function isConversationProactive(phone) {
   const db = requireClient();
   let { data, error } = await db
-    .from("conversations")
+    .from("wa_conversations")
     .select("proactive")
     .eq("phone", phone)
     .maybeSingle();
@@ -181,7 +181,7 @@ function isMissingHandoffReasonColumn(error) {
 async function setConversationStatus(phone, status, handoffReason = null) {
   const db = requireClient();
   const { data: existing, error: selErr } = await db
-    .from("conversations")
+    .from("wa_conversations")
     .select("phone")
     .eq("phone", phone)
     .maybeSingle();
@@ -193,7 +193,7 @@ async function setConversationStatus(phone, status, handoffReason = null) {
   const write = async (withReason) => {
     const payload = withReason ? { status, handoff_reason: reason } : { status };
     if (!existing) {
-      return db.from("conversations").insert({
+      return db.from("wa_conversations").insert({
         phone,
         name: "",
         last_message_at: new Date().toISOString(),
@@ -201,7 +201,7 @@ async function setConversationStatus(phone, status, handoffReason = null) {
         ...payload,
       });
     }
-    return db.from("conversations").update(payload).eq("phone", phone);
+    return db.from("wa_conversations").update(payload).eq("phone", phone);
   };
 
   let { error } = await write(true);
@@ -221,7 +221,7 @@ async function enrichConversationsWithUserMessages(rows) {
   const db = requireClient();
   const phones = rows.map((r) => r.phone);
   const { data: userMsgs, error } = await db
-    .from("messages")
+    .from("wa_messages")
     .select("phone, content, created_at")
     .in("phone", phones)
     .eq("role", "user")
@@ -248,7 +248,7 @@ async function enrichConversationsWithUserMessages(rows) {
 async function getConversations() {
   const db = requireClient();
   let { data, error } = await db
-    .from("conversations")
+    .from("wa_conversations")
     .select(CONVERSATIONS_SELECT_FULL)
     .order("last_message_at", { ascending: false });
 
@@ -259,7 +259,7 @@ async function getConversations() {
       isMissingHandoffReasonColumn(error))
   ) {
     ({ data, error } = await db
-      .from("conversations")
+      .from("wa_conversations")
       .select(CONVERSATIONS_SELECT_BASIC)
       .order("last_message_at", { ascending: false }));
   }
@@ -278,7 +278,7 @@ async function getConversations() {
 async function getMessages(phone) {
   const db = requireClient();
   const { data, error } = await db
-    .from("messages")
+    .from("wa_messages")
     .select("id, phone, role, content, created_at")
     .eq("phone", phone)
     .order("created_at", { ascending: true });
@@ -291,7 +291,7 @@ async function getMessages(phone) {
  */
 async function deleteConversation(phone) {
   const db = requireClient();
-  const { error } = await db.from("conversations").delete().eq("phone", phone);
+  const { error } = await db.from("wa_conversations").delete().eq("phone", phone);
   if (error) throw error;
 }
 
@@ -308,13 +308,13 @@ function isMissingMessageNameColumn(err) {
 async function fetchLeadsRows() {
   const db = requireClient();
   let { data, error } = await db
-    .from("leads")
+    .from("wa_leads")
     .select(LEADS_SELECT_FULL)
     .order("created_at", { ascending: false });
 
   if (error && isMissingMessageNameColumn(error)) {
     ({ data, error } = await db
-      .from("leads")
+      .from("wa_leads")
       .select(LEADS_SELECT_BASIC)
       .order("created_at", { ascending: false }));
   }
@@ -332,7 +332,7 @@ async function persistComputedMessageNames(rows) {
     const computed = extractMessageName(row.business);
     if (!computed) continue;
     pending.push(
-      db.from("leads").update({ message_name: computed }).eq("id", row.id)
+      db.from("wa_leads").update({ message_name: computed }).eq("id", row.id)
     );
   }
 
@@ -347,14 +347,14 @@ async function getLeadById(id) {
   try {
     const db = requireClient();
     let { data, error } = await db
-      .from("leads")
+      .from("wa_leads")
       .select(LEADS_SELECT_FULL)
       .eq("id", id)
       .maybeSingle();
 
     if (error && isMissingMessageNameColumn(error)) {
       ({ data, error } = await db
-        .from("leads")
+        .from("wa_leads")
         .select(LEADS_SELECT_BASIC)
         .eq("id", id)
         .maybeSingle());
@@ -385,7 +385,7 @@ async function getLeads() {
 async function getLeadsCreatedAfter(isoTimestamp) {
   const db = requireClient();
   const { data, error } = await db
-    .from("leads")
+    .from("wa_leads")
     .select(
       "id, name, business, phone, business_type, notes, source, status, message_name, created_at"
     )
@@ -401,7 +401,7 @@ async function getLeadsCreatedAfter(isoTimestamp) {
 async function getExistingLeadPhones() {
   try {
     const db = requireClient();
-    const { data, error } = await db.from("leads").select("phone");
+    const { data, error } = await db.from("wa_leads").select("phone");
     if (error) throw error;
     return new Set((data ?? []).map((r) => r.phone));
   } catch (err) {
@@ -449,7 +449,7 @@ async function updateLead(id, fields = {}) {
   try {
     const db = requireClient();
     const { data, error } = await db
-      .from("leads")
+      .from("wa_leads")
       .update(patch)
       .eq("id", id)
       .select("id, status, message_name")
@@ -474,7 +474,7 @@ async function backfillMessageNames() {
 async function createLead(lead) {
   try {
     const db = requireClient();
-    const { data, error } = await db.from("leads").insert(lead).select().single();
+    const { data, error } = await db.from("wa_leads").insert(lead).select().single();
     if (error) throw error;
     return withMessageNameFallback(data);
   } catch (err) {
@@ -486,7 +486,7 @@ async function deleteLead(id) {
   if (!id) throw new Error("חסר id");
   try {
     const db = requireClient();
-    const { error } = await db.from("leads").delete().eq("id", id);
+    const { error } = await db.from("wa_leads").delete().eq("id", id);
     if (error) throw error;
   } catch (err) {
     throw wrapDbError(err);
@@ -501,7 +501,7 @@ async function bulkInsertLeads(leads) {
 
     for (let i = 0; i < leads.length; i += LEADS_INSERT_CHUNK) {
       const chunk = leads.slice(i, i + LEADS_INSERT_CHUNK);
-      const { data, error } = await db.from("leads").insert(chunk).select();
+      const { data, error } = await db.from("wa_leads").insert(chunk).select();
       if (error) throw error;
       inserted.push(...(data ?? []));
     }
@@ -522,14 +522,14 @@ async function getLeadsByStatus(status) {
   try {
     const db = requireClient();
     let { data, error } = await db
-      .from("leads")
+      .from("wa_leads")
       .select(LEADS_SELECT_FULL)
       .eq("status", status)
       .order("created_at", { ascending: true });
 
     if (error && isMissingMessageNameColumn(error)) {
       ({ data, error } = await db
-        .from("leads")
+        .from("wa_leads")
         .select(LEADS_SELECT_BASIC)
         .eq("status", status)
         .order("created_at", { ascending: true }));

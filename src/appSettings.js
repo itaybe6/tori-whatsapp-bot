@@ -9,7 +9,7 @@ function isMissingSettingsTable(err) {
   const msg = String(err?.message || err || "");
   return (
     code === "PGRST205" ||
-    (msg.includes("app_settings") &&
+    (msg.includes("wa_app_settings") &&
       (msg.includes("does not exist") ||
         msg.includes("schema cache") ||
         msg.includes("Could not find the table")))
@@ -35,7 +35,7 @@ function writeFileSettings(all) {
 async function readSupabaseSetting(key) {
   const db = requireClient();
   const { data, error } = await db
-    .from("app_settings")
+    .from("wa_app_settings")
     .select("value")
     .eq("key", key)
     .maybeSingle();
@@ -46,7 +46,7 @@ async function readSupabaseSetting(key) {
 
 async function writeSupabaseSetting(key, value) {
   const db = requireClient();
-  const { error } = await db.from("app_settings").upsert(
+  const { error } = await db.from("wa_app_settings").upsert(
     {
       key,
       value,

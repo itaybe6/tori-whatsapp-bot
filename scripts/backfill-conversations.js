@@ -11,7 +11,7 @@ async function main() {
   });
 
   const { data: convs, error } = await db
-    .from("conversations")
+    .from("wa_conversations")
     .select("phone, proactive, last_user_message");
   if (error) throw error;
 
@@ -23,7 +23,7 @@ async function main() {
 
     if (!String(conv.last_user_message || "").trim()) {
       const { data: msgs } = await db
-        .from("messages")
+        .from("wa_messages")
         .select("content")
         .eq("phone", conv.phone)
         .eq("role", "user")
@@ -38,14 +38,14 @@ async function main() {
 
     if (!conv.proactive) {
       const { data: first } = await db
-        .from("messages")
+        .from("wa_messages")
         .select("role")
         .eq("phone", conv.phone)
         .order("created_at", { ascending: true })
         .limit(1);
       if (first?.[0]?.role === "bot") {
         const { data: lead } = await db
-          .from("leads")
+          .from("wa_leads")
           .select("source, status")
           .eq("phone", conv.phone)
           .maybeSingle();
@@ -63,7 +63,7 @@ async function main() {
 
     if (Object.keys(patch).length) {
       const { error: updErr } = await db
-        .from("conversations")
+        .from("wa_conversations")
         .update(patch)
         .eq("phone", conv.phone);
       if (updErr) throw updErr;
