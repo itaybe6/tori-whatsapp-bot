@@ -94,6 +94,47 @@ function stripLegacyFields(config) {
   return config;
 }
 
+/**
+ * הגדרות שנשמרו מהדשבורד או מאימון גוברות על הקבצים. כשהקבצים מתעדכנים
+ * (למשל שינוי מחיר), עותק ישן ב-DB ימשיך לענות עם המידע הישן. סימני המחיר
+ * הקודם מזהים עותק כזה, והוא מתרענן מהקבצים פעם אחת.
+ */
+const STALE_CONTENT_MARKERS = [/299\s*ש״?"?ח/u, /352\.82/];
+
+function isStaleText(text) {
+  const t = String(text || "");
+  return STALE_CONTENT_MARKERS.some((re) => re.test(t));
+}
+
+function refreshStaleSections(config) {
+  const refreshed = [];
+  if (isStaleText(config.knowledgeBase)) {
+    config.knowledgeBase = readDefaultKnowledge();
+    refreshed.push("knowledgeBase");
+  }
+  const defaults = {
+    inbound: readDefaultInboundPrompt(),
+    outbound: readDefaultOutboundPrompt(),
+  };
+  for (const section of ["inbound", "outbound"]) {
+    const s = config[section];
+    if (!s || typeof s !== "object") continue;
+    if (isStaleText(s.prompt)) {
+      s.prompt = defaults[section];
+      refreshed.push(`${section}.prompt`);
+    }
+    if (isStaleText(s.conversationGuide)) {
+      s.conversationGuide = DEFAULT_CONVERSATION_GUIDE;
+      refreshed.push(`${section}.conversationGuide`);
+    }
+    if (isStaleText(s.systemPromptOverride)) {
+      s.systemPromptOverride = "";
+      refreshed.push(`${section}.systemPromptOverride`);
+    }
+  }
+  return refreshed;
+}
+
 let cachedConfig = null;
 let cacheTime = 0;
 const CACHE_MS = 3000;
@@ -128,7 +169,15 @@ async function getAiAgentConfig() {
     typeof stored === "object" &&
     (!String(stored.inbound?.prompt || "").trim() ||
       !String(stored.outbound?.prompt || "").trim());
-  if (hadEmptyPrompt) {
+  const refreshed = stored && typeof stored === "object"
+    ? refreshStaleSections(merged)
+    : [];
+  if (refreshed.length) {
+    console.log(
+      `♻️  הגדרות AI שמורות הכילו מידע ישן — רוענן מהקבצים: ${refreshed.join(", ")}`
+    );
+  }
+  if (hadEmptyPrompt || refreshed.length) {
     merged.updatedAt = new Date().toISOString();
     await setAppSetting("ai_agent_config", merged);
   }
